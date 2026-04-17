@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -67,7 +69,10 @@ class PosePainter extends CustomPainter {
 
       for (final lm in pose.landmarks.values) {
         if (lm.likelihood < 0.3) continue;
-        final p = _project(lm.x, lm.y, size);
+        final p = Offset(
+          _translateX(lm.x, size),
+          _translateY(lm.y, size),
+        );
         canvas.drawCircle(p, 4, jointPaint);
       }
     }
@@ -75,48 +80,43 @@ class PosePainter extends CustomPainter {
 
   Offset? _projectLandmark(PoseLandmark? lm, Size canvasSize) {
     if (lm == null) return null;
-    return _project(lm.x, lm.y, canvasSize);
+    return Offset(_translateX(lm.x, canvasSize), _translateY(lm.y, canvasSize));
   }
 
-  Offset _project(double x, double y, Size canvasSize) {
-    final rotated = _rotatedImageSize();
-    final scaleX = canvasSize.width / rotated.width;
-    final scaleY = canvasSize.height / rotated.height;
-
-    double dx;
-    double dy;
+  // Coordinate translation matches the official google_ml_kit_flutter example.
+  // Landmarks come back in the upright (post-rotation) image space; we only
+  // need to scale to canvas, and mirror horizontally for the front camera in
+  // landscape orientations.
+  double _translateX(double x, Size canvasSize) {
     switch (rotation) {
-      case InputImageRotation.rotation0deg:
-        dx = x;
-        dy = y;
       case InputImageRotation.rotation90deg:
-        dx = imageSize.height - y;
-        dy = x;
-      case InputImageRotation.rotation180deg:
-        dx = imageSize.width - x;
-        dy = imageSize.height - y;
+        return x *
+            canvasSize.width /
+            (Platform.isIOS ? imageSize.width : imageSize.height);
       case InputImageRotation.rotation270deg:
-        dx = y;
-        dy = imageSize.width - x;
+        return canvasSize.width -
+            x *
+                canvasSize.width /
+                (Platform.isIOS ? imageSize.width : imageSize.height);
+      case InputImageRotation.rotation0deg:
+      case InputImageRotation.rotation180deg:
+        final scaled = x * canvasSize.width / imageSize.width;
+        return cameraLensDirection == CameraLensDirection.front
+            ? canvasSize.width - scaled
+            : scaled;
     }
-
-    var px = dx * scaleX;
-    final py = dy * scaleY;
-
-    if (cameraLensDirection == CameraLensDirection.front) {
-      px = canvasSize.width - px;
-    }
-    return Offset(px, py);
   }
 
-  Size _rotatedImageSize() {
+  double _translateY(double y, Size canvasSize) {
     switch (rotation) {
       case InputImageRotation.rotation90deg:
       case InputImageRotation.rotation270deg:
-        return Size(imageSize.height, imageSize.width);
+        return y *
+            canvasSize.height /
+            (Platform.isIOS ? imageSize.height : imageSize.width);
       case InputImageRotation.rotation0deg:
       case InputImageRotation.rotation180deg:
-        return imageSize;
+        return y * canvasSize.height / imageSize.height;
     }
   }
 

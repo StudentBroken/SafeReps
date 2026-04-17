@@ -100,7 +100,23 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     _initializing = true;
 
     try {
-      await _controller?.dispose();
+      // Tear down the previous controller before swapping references so the
+      // build method never sees a disposed CameraController.
+      final old = _controller;
+      _controller = null;
+      _busy = false;
+      _poses = const [];
+      _imageSize = null;
+      _rotation = null;
+      if (mounted) setState(() {});
+
+      if (old != null) {
+        try {
+          if (old.value.isStreamingImages) await old.stopImageStream();
+        } catch (_) {}
+        await old.dispose();
+      }
+
       final desc = widget.cameras[_cameraIndex];
       final controller = CameraController(
         desc,
@@ -110,22 +126,26 @@ class _PoseCameraPageState extends State<PoseCameraPage>
             ? ImageFormatGroup.nv21
             : ImageFormatGroup.bgra8888,
       );
-      _controller = controller;
       await controller.initialize();
-      if (!mounted) return;
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      _controller = controller;
       await controller.startImageStream(_onCameraImage);
-      setState(() {});
+      if (mounted) setState(() {});
     } on CameraException catch (e) {
-      setState(() => _error = 'Camera error: ${e.description ?? e.code}');
+      if (mounted) {
+        setState(() => _error = 'Camera error: ${e.description ?? e.code}');
+      }
     } finally {
       _initializing = false;
     }
   }
 
   Future<void> _switchCamera() async {
-    if (widget.cameras.length < 2) return;
+    if (widget.cameras.length < 2 || _initializing) return;
     _cameraIndex = (_cameraIndex + 1) % widget.cameras.length;
-    setState(() => _poses = const []);
     await _startCamera();
   }
 
