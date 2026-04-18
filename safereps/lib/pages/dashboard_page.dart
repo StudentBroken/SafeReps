@@ -7,6 +7,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart'
 import 'package:video_player/video_player.dart';
 
 import '../models/goals_model.dart';
+import '../models/history_model.dart';
 import '../services/ble_service.dart';
 import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
@@ -69,7 +70,7 @@ class _DashboardPageState extends State<DashboardPage>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _BarChartCard(exercises: model.exercises),
+                    child: _FormCheckCard(),
                   ),
                 ],
               ),
@@ -896,6 +897,148 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter old) => old.progress != progress || old.color != color;
+}
+
+// ── Form Check card ───────────────────────────────────────────────────────────
+
+Color _formQualityColor(double q) {
+  if (q >= 85) return const Color(0xFF4CAF50);
+  if (q >= 65) return const Color(0xFFFFA000);
+  return const Color(0xFFE53935);
+}
+
+IconData _formFaceIcon(double q) {
+  if (q >= 85) return Icons.sentiment_very_satisfied_rounded;
+  if (q >= 65) return Icons.sentiment_satisfied_rounded;
+  if (q >= 45) return Icons.sentiment_neutral_rounded;
+  return Icons.sentiment_very_dissatisfied_rounded;
+}
+
+class _FormCheckCard extends StatefulWidget {
+  const _FormCheckCard();
+
+  @override
+  State<_FormCheckCard> createState() => _FormCheckCardState();
+}
+
+class _FormCheckCardState extends State<_FormCheckCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce;
+  late final Animation<double> _bounceAnim;
+  late final Animation<double> _glowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _bounceAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
+      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
+    );
+    _glowAnim = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  double? _todayAvgForm(List<SessionHistoryEntry> sessions) {
+    final now = DateTime.now();
+    final todaySessions = sessions.where((s) {
+      final d = s.timestamp;
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }).toList();
+    if (todaySessions.isEmpty) return null;
+    final all = todaySessions.expand((s) => s.exercises).toList();
+    if (all.isEmpty) return null;
+    return all.fold(0.0, (s, e) => s + e.avgQuality) / all.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final history = HistoryScope.of(context);
+    final themeColors = AppTheme.colors(context);
+    final avgForm = _todayAvgForm(history.sessions);
+    final hasData = avgForm != null;
+
+    final faceColor = hasData ? _formQualityColor(avgForm!) : AppColors.pinkBright;
+    final faceIcon = hasData ? _formFaceIcon(avgForm!) : Icons.sentiment_very_satisfied_rounded;
+
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Form Check',
+            style: TextStyle(
+              color: themeColors.textMid,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: _bounce,
+                builder: (context, _) {
+                  return Transform.translate(
+                    offset: Offset(0, _bounceAnim.value),
+                    child: Icon(
+                      faceIcon,
+                      size: 52,
+                      color: faceColor.withValues(alpha: _glowAnim.value),
+                      shadows: [
+                        Shadow(
+                          color: faceColor.withValues(alpha: 0.35 * _glowAnim.value),
+                          blurRadius: 14,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          hasData
+              ? Text(
+                  '${avgForm!.round()}%',
+                  style: TextStyle(
+                    color: faceColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                )
+              : Text(
+                  '—',
+                  style: TextStyle(
+                    color: themeColors.textLight,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+          const SizedBox(height: 2),
+          Text(
+            'avg form today',
+            style: TextStyle(
+              color: themeColors.textLight,
+              fontSize: 9,
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
 }
 
 class _BarChartCard extends StatelessWidget {
