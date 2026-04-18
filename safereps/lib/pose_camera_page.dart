@@ -86,15 +86,14 @@ class _PoseCameraPageState extends State<PoseCameraPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.paused) {
+      final c = _controller;
+      if (c == null || !c.value.isInitialized) return;
       _controller = null;
       if (mounted) setState(() {});
       c.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      if (_cameras.isNotEmpty) _startCamera();
+      if (_cameras.isNotEmpty && _controller == null) _startCamera();
     }
   }
 
@@ -186,9 +185,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       );
       await controller.initialize();
       final ls = WidgetsBinding.instance.lifecycleState;
-      if (!mounted ||
-          ls == AppLifecycleState.inactive ||
-          ls == AppLifecycleState.paused) {
+      if (!mounted || ls == AppLifecycleState.paused) {
         await controller.dispose();
         return;
       }
