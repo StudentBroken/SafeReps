@@ -41,9 +41,14 @@ class RepCounter {
 
   RepPhase _phase = RepPhase.idle;
   int _reps = 0;
+  DateTime? _lastRepTime;
+  double? _lastRepDuration;
 
   int get reps => _reps;
   RepPhase get phase => _phase;
+
+  /// Seconds between the last two completed reps. Null until two reps done.
+  double? get lastRepDuration => _lastRepDuration;
 
   RepResult update(JointAngles angles) {
     final angle = exercise.primaryAngle(angles);
@@ -90,6 +95,11 @@ class RepCounter {
 
       case RepPhase.ascending:
         if (_pastTop(angle)) {
+          final now = DateTime.now();
+          if (_lastRepTime != null) {
+            _lastRepDuration = now.difference(_lastRepTime!).inMilliseconds / 1000.0;
+          }
+          _lastRepTime = now;
           _reps++;
           return RepPhase.top;
         }
@@ -101,5 +111,7 @@ class RepCounter {
   void reset() {
     _phase = RepPhase.idle;
     _reps = 0;
+    _lastRepTime = null;
+    _lastRepDuration = null;
   }
 }

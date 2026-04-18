@@ -15,6 +15,7 @@ import 'pose_painter.dart';
 import 'analysis/joint_angles.dart';
 import 'analysis/exercise.dart';
 import 'analysis/rep_counter.dart';
+import 'models/session_model.dart';
 
 class PoseCameraPage extends StatefulWidget {
   const PoseCameraPage({super.key, required this.cameras});
@@ -301,7 +302,11 @@ class _PoseCameraPageState extends State<PoseCameraPage>
         final counter = _repCounter;
         final angles = _angles;
         if (counter != null && angles != null && _isPoseValid) {
+          final prevReps = counter.reps;
           _repResult = counter.update(angles);
+          if (counter.reps != prevReps && counter.lastRepDuration != null) {
+            SessionScope.of(context).reportRepSpeed(counter.lastRepDuration);
+          }
         }
       });
     } catch (_) {

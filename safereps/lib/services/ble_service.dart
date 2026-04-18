@@ -164,11 +164,7 @@ class BleService extends ChangeNotifier {
 
     await _scanSub?.cancel();
     _scanSub = FlutterBluePlus.scanResults.listen((results) {
-      // Only show devices with "esp32" in the name, hiding unknown devices
-      scanResults = results.where((r) {
-        final name = r.device.platformName.toLowerCase();
-        return name.contains('esp32');
-      }).toList();
+      scanResults = results;
       notifyListeners();
     });
 

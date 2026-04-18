@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'models/coach_settings.dart';
 import 'models/goals_model.dart';
+import 'models/session_model.dart';
 import 'services/ble_service.dart';
 import 'services/theme_service.dart';
 import 'shell.dart';
@@ -29,6 +30,7 @@ Future<void> main() async {
   final goalsModel = GoalsModel();
   await goalsModel.load();
   final coachSettings = await CoachSettings.load();
+  final sessionModel = SessionModel();
 
   runApp(
     ThemeScope(
@@ -39,7 +41,10 @@ Future<void> main() async {
           model: goalsModel,
           child: BleScope(
             ble: bleService,
-            child: const SafeRepsApp(),
+            child: SessionScope(
+              model: sessionModel,
+              child: const SafeRepsApp(),
+            ),
           ),
         ),
       ),

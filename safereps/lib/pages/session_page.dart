@@ -632,61 +632,75 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         final isCurl = _currentGoal.name.contains('Curl');
         final repPhase = _repResult?.phase;
 
-        // Arms-not-straight: Bicep Curl at bottom phase — elbow should be near
-        // fully extended (~25°). If it reads above 55° the user isn't extending.
-        if (isCurl && repPhase == RepPhase.bottom) {
-          final leftElbow  = angles.leftElbow;
-          final rightElbow = angles.rightElbow;
-          final elbowAngle = (leftElbow != null && rightElbow != null)
-              ? (leftElbow + rightElbow) / 2
-              : (leftElbow ?? rightElbow);
-          if (elbowAngle != null && elbowAngle > 55) {
+        // Bicep Curl: Form cues
+        if (isCurl) {
+          final elbowAngle = (angles.leftElbow != null && angles.rightElbow != null)
+              ? (angles.leftElbow! + angles.rightElbow!) / 2
+              : (angles.leftElbow ?? angles.rightElbow);
+
+          if (elbowAngle != null) {
             final now2 = DateTime.now();
             final lastArm = _armsNotStraightLastAt;
-            if (lastArm == null ||
-                now2.difference(lastArm) > const Duration(seconds: 4)) {
-              _armsNotStraightLastAt = now2;
-              _showQuickPopup('Straighten your arms!');
-              _fireCoachCue(CueCategory.bicepRomBottom, correction: true);
+            final canFire = lastArm == null ||
+                now2.difference(lastArm) > const Duration(seconds: 4);
+
+            if (canFire) {
+              // 1. Extension check: at the hanging/start phase
+              if ((repPhase == RepPhase.top || repPhase == RepPhase.idle) &&
+                  elbowAngle < 140) {
+                _armsNotStraightLastAt = now2;
+                _showQuickPopup('Straighten your arms!');
+                _fireCoachCue(CueCategory.bicepRomBottom, correction: true);
+              }
+              // 2. Contraction check: at the peak of the curl
+              else if (repPhase == RepPhase.bottom && elbowAngle > 55) {
+                _armsNotStraightLastAt = now2;
+                _showQuickPopup('Curl higher!');
+                _fireCoachCue(CueCategory.bicepRomTop, correction: true);
+              }
             }
           }
         }
 
         // Lateral: if shoulder angle stays below 15° mid-rep the user isn't
         // raising high enough — give a live nudge.
-        if (!isCurl &&
-            (repPhase == RepPhase.ascending ||
-                repPhase == RepPhase.bottom)) {
-          final ls = angles.leftShoulder;
-          final rs = angles.rightShoulder;
-          final shoulderAngle = (ls != null && rs != null)
-              ? (ls + rs) / 2
-              : (ls ?? rs);
-          if (shoulderAngle != null && shoulderAngle < 15) {
-            final now2 = DateTime.now();
-            final lastArm = _armsNotStraightLastAt;
-            if (lastArm == null ||
-                now2.difference(lastArm) > const Duration(seconds: 4)) {
-              _armsNotStraightLastAt = now2;
-              _showQuickPopup('Raise higher!');
-              _fireCoachCue(CueCategory.lateralRom, correction: true);
+        // Lateral Raise: Form cues
+        if (!isCurl) {
+          // Raise higher: during active lift (descending)
+          if (repPhase == RepPhase.descending) {
+            final ls = angles.leftShoulder;
+            final rs = angles.rightShoulder;
+            final shoulderAngle = (ls != null && rs != null)
+                ? (ls + rs) / 2
+                : (ls ?? rs);
+            if (shoulderAngle != null && shoulderAngle < 15) {
+              final now2 = DateTime.now();
+              final lastArm = _armsNotStraightLastAt;
+              if (lastArm == null ||
+                  now2.difference(lastArm) > const Duration(seconds: 4)) {
+                _armsNotStraightLastAt = now2;
+                _showQuickPopup('Raise higher!');
+                _fireCoachCue(CueCategory.lateralRom, correction: true);
+              }
             }
           }
 
-          // Arms not straight: elbow should be near-extended during lateral raise.
-          final le = angles.leftElbow;
-          final re = angles.rightElbow;
-          final elbowAngle = (le != null && re != null)
-              ? (le + re) / 2
-              : (le ?? re);
-          if (elbowAngle != null && elbowAngle < 140) {
-            final now2 = DateTime.now();
-            final lastArm = _armsNotStraightLastAt;
-            if (lastArm == null ||
-                now2.difference(lastArm) > const Duration(seconds: 4)) {
-              _armsNotStraightLastAt = now2;
-              _showQuickPopup('Straighten your arms!');
-              _fireCoachCue(CueCategory.lateralElbowWrist, correction: true);
+          // Straighten arms: during active lift (descending) or peak (bottom)
+          if (repPhase == RepPhase.descending || repPhase == RepPhase.bottom) {
+            final le = angles.leftElbow;
+            final re = angles.rightElbow;
+            final elbowAngle = (le != null && re != null)
+                ? (le + re) / 2
+                : (le ?? re);
+            if (elbowAngle != null && elbowAngle < 140) {
+              final now2 = DateTime.now();
+              final lastArm = _armsNotStraightLastAt;
+              if (lastArm == null ||
+                  now2.difference(lastArm) > const Duration(seconds: 4)) {
+                _armsNotStraightLastAt = now2;
+                _showQuickPopup('Straighten your arms!');
+                _fireCoachCue(CueCategory.lateralElbowWrist, correction: true);
+              }
             }
           }
         }

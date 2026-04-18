@@ -6,22 +6,25 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import 'models/session_model.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/goals_page.dart';
 import 'pages/settings_page.dart';
 import 'theme.dart';
 
-// Vertical pill width.
-const double _kPillW = 52.0;
+// Floating pill height (content only, safe-area bottom added separately).
+const double _kPillH = 76.0;
 
-// Vertical inset from top and bottom safe area edges.
-const double _kPillVInset = 80.0;
+// Extra bottom margin between pill and safe-area edge.
+const double _kPillBottomMargin = 14.0;
 
-// Right margin from screen edge.
-const double _kPillRightMargin = 12.0;
+// Horizontal inset so the pill floats inside the screen edges.
+const double _kPillHInset = 12.0;
 
-/// Right padding pages should add so content clears the vertical nav pill.
-const double kNavPillClearance = _kPillW + _kPillRightMargin + 8;
+/// Bottom padding pages should add to their scroll content so the last item
+/// clears the floating nav pill. Does NOT include the system safe-area inset
+/// (SafeArea / MediaQuery.padding.bottom handles that separately).
+const double kNavPillClearance = _kPillH + _kPillBottomMargin + 8;
 
 // ---------------------------------------------------------------------------
 
@@ -70,14 +73,13 @@ class _MainShellState extends State<MainShell> {
             ],
           ),
           Positioned(
-            top: 0,
             bottom: 0,
+            left: 0,
             right: 0,
             child: _FloatingNav(
               index: _index,
               controller: _pc,
               onTap: _onNavTap,
-              sysTop: mq.padding.top,
               sysBottom: mq.padding.bottom,
             ),
           ),
@@ -102,14 +104,12 @@ class _FloatingNav extends StatelessWidget {
     required this.index,
     required this.controller,
     required this.onTap,
-    required this.sysTop,
     required this.sysBottom,
   });
 
   final int index;
   final PageController controller;
   final ValueChanged<int> onTap;
-  final double sysTop;
   final double sysBottom;
 
   static bool get _isIOS => !kIsWeb && Platform.isIOS;
@@ -118,31 +118,29 @@ class _FloatingNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIOS = _isIOS;
     final themeColors = AppTheme.colors(context);
-    final radius = BorderRadius.circular(_kPillW / 2);
+    final radius = BorderRadius.circular(_kPillH / 2);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        0,
-        sysTop + _kPillVInset,
-        _kPillRightMargin,
-        sysBottom + _kPillVInset,
-      ),
+          _kPillHInset, 0, _kPillHInset, _kPillBottomMargin + sysBottom),
       child: Container(
-        width: _kPillW,
+        height: _kPillH,
         decoration: BoxDecoration(
           borderRadius: radius,
           boxShadow: [
+            // Outer diffuse shadow — gives floating feel
             BoxShadow(
               color: Colors.black.withAlpha(isIOS ? 45 : 30),
               blurRadius: isIOS ? 28 : 18,
               spreadRadius: isIOS ? 4 : 2,
-              offset: const Offset(-4, 6),
+              offset: const Offset(0, 6),
             ),
+            // iOS: secondary tight shadow for depth
             if (isIOS)
               BoxShadow(
                 color: Colors.black.withAlpha(20),
                 blurRadius: 8,
-                offset: const Offset(-2, 2),
+                offset: const Offset(0, 2),
               ),
           ],
         ),
@@ -151,15 +149,16 @@ class _FloatingNav extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // ── Layer 1: backdrop blur ────────────────────────────────────
+              // ── Layer 1: heavy backdrop blur ──────────────────────────────
               BackdropFilter(
                 filter: ImageFilter.blur(
                   sigmaX: isIOS ? 48 : 28,
                   sigmaY: isIOS ? 48 : 28,
                 ),
+                // Base fill: near-transparent on iOS, themed tint on Android.
                 child: Container(
                   color: isIOS
-                      ? const Color(0x18FFFFFF)
+                      ? const Color(0x18FFFFFF)   // almost clear glass
                       : Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),
                 ),
               ),
@@ -169,7 +168,7 @@ class _FloatingNav extends StatelessWidget {
 
               // ── Layer 2.5: sliding highlight bubble ───────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: _NavBubble(
                   index: index,
                   controller: controller,
@@ -179,8 +178,8 @@ class _FloatingNav extends StatelessWidget {
 
               // ── Layer 3: nav items ────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
                   children: List.generate(
                     _kNavItems.length,
                     (i) => Expanded(
@@ -192,6 +191,14 @@ class _FloatingNav extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+
+              // ── Layer 4: rep speed pill ───────────────────────────────────
+              Positioned(
+                right: 10,
+                top: 10,
+                bottom: 10,
+                child: _RepSpeedPill(repSpeed: SessionScope.of(context).repSpeed),
               ),
             ],
           ),
@@ -371,16 +378,16 @@ class _NavBubble extends StatelessWidget {
         }
 
         return Align(
-          alignment: Alignment(0, -1.0 + (page / (_kNavItems.length - 1)) * 2.0),
+          alignment: Alignment(-1.0 + (page * 1.0), 0),
           child: child,
         );
       },
       child: FractionallySizedBox(
-        heightFactor: 1 / _kNavItems.length,
+        widthFactor: 1 / _kNavItems.length,
         child: Center(
           child: Container(
-            width: 40,
-            height: 48,
+            width: 72,
+            height: 56,
             decoration: BoxDecoration(
               color: subPillColor,
               borderRadius: BorderRadius.circular(20),
@@ -466,6 +473,54 @@ class _NavItemState extends State<_NavItem>
             curve: Curves.easeOutBack,
             child: Icon(widget.icon, size: 28, color: iconColor),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rep speed pill — vertical solid color indicator on right of nav pill
+// ---------------------------------------------------------------------------
+
+class _RepSpeedPill extends StatelessWidget {
+  const _RepSpeedPill({required this.repSpeed});
+
+  final double? repSpeed; // seconds per rep; null = no active session
+
+  // Green ≥ 1.5 s/rep → yellow → red ≤ 0.5 s/rep
+  static Color _colorForSpeed(double secs) {
+    const fast = 0.5;
+    const good = 1.5;
+    final t = ((secs - fast) / (good - fast)).clamp(0.0, 1.0);
+    if (t < 0.5) {
+      return Color.lerp(const Color(0xFFE53935), const Color(0xFFFFB300), t * 2)!;
+    } else {
+      return Color.lerp(const Color(0xFFFFB300), const Color(0xFF43A047), (t - 0.5) * 2)!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final speed = repSpeed;
+    return AnimatedOpacity(
+      opacity: speed != null ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 400),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+        width: 36,
+        decoration: BoxDecoration(
+          color: speed != null ? _colorForSpeed(speed) : const Color(0xFF43A047),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: (speed != null ? _colorForSpeed(speed) : const Color(0xFF43A047))
+                  .withValues(alpha: 0.45),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
         ),
       ),
     );
