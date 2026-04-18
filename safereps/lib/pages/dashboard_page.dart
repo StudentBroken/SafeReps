@@ -1662,15 +1662,27 @@ class _ProperFormViewerDialogState extends State<_ProperFormViewerDialog>
 
   Future<void> _initVideo() async {
     if (_videoCtrl != null) return;
-    final ctrl = VideoPlayerController.asset(widget.exercise.videoPath);
-    await ctrl.initialize();
-    await ctrl.setLooping(true);
-    await ctrl.play();
-    if (mounted) {
-      setState(() {
-        _videoCtrl = ctrl;
-        _videoReady = true;
-      });
+    try {
+      // video_player on iOS requires the path exactly as declared in pubspec.yaml.
+      // Do NOT strip the 'assets/' prefix here \u2014 VideoPlayerController.asset()
+      // uses rootBundle directly and expects the full path.
+      final ctrl = VideoPlayerController.asset(widget.exercise.videoPath);
+      await ctrl.initialize();
+      await ctrl.setLooping(true);
+      // Mute the demo video so it doesn't compete with the voice coach.
+      await ctrl.setVolume(0);
+      await ctrl.play();
+      if (mounted) {
+        setState(() {
+          _videoCtrl = ctrl;
+          _videoReady = true;
+        });
+      } else {
+        await ctrl.dispose();
+      }
+    } catch (e) {
+      // Video failed to load \u2014 stay on image view silently.
+      debugPrint('[SafeReps] Video init failed: $e');
     }
   }
 

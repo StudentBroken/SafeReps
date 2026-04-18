@@ -53,5 +53,14 @@
 	<string>SafeReps uses Bluetooth to connect to the ESP32 IMU sensor worn during workouts.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>SafeReps uses Bluetooth to connect to the ESP32 IMU sensor worn during workouts.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

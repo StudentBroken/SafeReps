@@ -526,11 +526,12 @@ class VoiceCoachService extends ChangeNotifier {
     ));
 
     await _player.setVolume(_settings.volume);
-    await _player.play(AssetSource(path));
+    // AssetSource prepends 'assets/' internally — strip our prefix to avoid double-pathing.
+    await _player.play(AssetSource(path.replaceFirst('assets/', '')));
 
-    // Clear caption after a delay matching typical track length
+    // Clear caption after 3 s — short enough to feel responsive.
     _captionTimer?.cancel();
-    _captionTimer = Timer(const Duration(seconds: 5), () {
+    _captionTimer = Timer(const Duration(seconds: 3), () {
       lastCaption = null;
       notifyListeners();
     });

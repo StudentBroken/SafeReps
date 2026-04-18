@@ -125,7 +125,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   late final VoiceCoachService _coach;
   // Cooldown to avoid firing cues on every BLE tick
   DateTime? _lastCueFiredAt;
-  static const _cueCooldown = Duration(milliseconds: 3500);
+  static const _cueCooldown = Duration(milliseconds: 1500);
+  // Arms-not-straight alert dedup
+  DateTime? _armsNotStraightLastAt;
 
   // ROM tracking: min/max primary angle seen during the current rep
   double _repMinAngle = double.infinity;
@@ -328,6 +330,13 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _notificationTimer = Timer(Duration(milliseconds: good ? 3500 : 2500), () {
       if (mounted) setState(() => _notification = null);
     });
+  }
+
+  /// Shows a brief high-priority overlay notification (used for live form alerts
+  /// like "Straighten your arms!" that need to be unmissable).
+  void _showQuickPopup(String message) {
+    if (!mounted) return;
+    _showNotification(message, good: false);
   }
 
   @override
@@ -579,6 +588,54 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             }
           }
 
+      // ── Continuous per-frame form checks (outside rep-boundary events) ────
+      if (_phase == _Phase.active && angles != null) {
+        final isCurl = _currentGoal.name.contains('Curl');
+        final repPhase = _repResult?.phase;
+
+        // Arms-not-straight: Bicep Curl at bottom phase — elbow should be near
+        // fully extended (~25°). If it reads above 55° the user isn't extending.
+        if (isCurl && repPhase == RepPhase.bottom) {
+          final leftElbow  = angles.leftElbow;
+          final rightElbow = angles.rightElbow;
+          final elbowAngle = (leftElbow != null && rightElbow != null)
+              ? (leftElbow + rightElbow) / 2
+              : (leftElbow ?? rightElbow);
+          if (elbowAngle != null && elbowAngle > 55) {
+            final now2 = DateTime.now();
+            final lastArm = _armsNotStraightLastAt;
+            if (lastArm == null ||
+                now2.difference(lastArm) > const Duration(seconds: 4)) {
+              _armsNotStraightLastAt = now2;
+              _showQuickPopup('Straighten your arms!');
+              _fireCoachCue(CueCategory.bicepRomBottom, correction: true);
+            }
+          }
+        }
+
+        // Lateral: if shoulder angle stays below 15° mid-rep the user isn't
+        // raising high enough — give a live nudge.
+        if (!isCurl &&
+            (repPhase == RepPhase.ascending ||
+                repPhase == RepPhase.bottom)) {
+          final ls = angles.leftShoulder;
+          final rs = angles.rightShoulder;
+          final shoulderAngle = (ls != null && rs != null)
+              ? (ls + rs) / 2
+              : (ls ?? rs);
+          if (shoulderAngle != null && shoulderAngle < 15) {
+            final now2 = DateTime.now();
+            final lastArm = _armsNotStraightLastAt;
+            if (lastArm == null ||
+                now2.difference(lastArm) > const Duration(seconds: 4)) {
+              _armsNotStraightLastAt = now2;
+              _showQuickPopup('Raise higher!');
+              _fireCoachCue(CueCategory.lateralRom, correction: true);
+            }
+          }
+        }
+      }
+
           _lastRepTime = now;
         }
       }
@@ -680,7 +737,8 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     }
     _lastCueFiredAt = now;
     if (correction) {
-      _coach.playCorrection(cat);
+      // Corrections always fire — bypass the frequency/positive gates.
+      _coach.playMandatory(cat);
     } else {
       _coach.play(cat);
     }
@@ -995,6 +1053,33 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               ),
             ),
           ),
+
+          // ── Audio debug button ──────────────────────────────────────────
+          if (_coachInitialized)
+            Positioned(
+              top: 0,
+              right: 60,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: GlassCard(
+                    padding: EdgeInsets.zero,
+                    borderRadius: 100,
+                    child: IconButton(
+                      tooltip: 'Test audio',
+                      icon: const Icon(
+                        Icons.volume_up_rounded,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        _coach.playMandatory(CueCategory.start);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // ── Active: progress ring island ─────────────────────
           if (isActive && hasExercise)
