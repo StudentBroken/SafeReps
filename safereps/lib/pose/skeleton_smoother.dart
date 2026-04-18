@@ -5,7 +5,7 @@ import 'skeleton.dart';
 /// Reduces per-frame jitter and holds the last valid skeleton for
 /// [holdoverFrames] frames when detection briefly drops out.
 class SkeletonSmoother {
-  SkeletonSmoother({this.alpha = 0.35, this.holdoverFrames = 5});
+  SkeletonSmoother({this.alpha = 0.8, this.holdoverFrames = 5});
 
   /// Blend factor [0,1]. Lower = smoother but more lag.
   final double alpha;
