@@ -9,6 +9,7 @@ MPU6050 mpu;
 #define SDA_PIN 8
 #define SCL_PIN 9
 #define INTERRUPT_PIN 10
+#define BATTERY_PIN 0  // GPIO0 is ADC1_CH0
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -37,6 +38,19 @@ float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
 
 // Serial Control
 bool streamData = false;
+
+// Battery monitoring
+float batteryVoltage = 0;
+unsigned long lastBatteryCheck = 0;
+const unsigned long batteryInterval = 5000;
+
+void updateBattery() {
+    int raw = 0;
+    for(int i=0; i<10; i++) raw += analogRead(BATTERY_PIN);
+    raw /= 10;
+    float pinVoltage = (raw / 4095.0) * 3.3;
+    batteryVoltage = pinVoltage * 2.0; // 100k/100k divider
+}
 
 void parseCommand(String command) {
     command.trim();
@@ -79,6 +93,7 @@ void setup() {
 
     Serial.println("{\"status\": \"Initializing I2C devices...\"}");
     mpu.initialize();
+    analogReadResolution(12); // ESP32 default is 12-bit (0-4095)
     pinMode(INTERRUPT_PIN, INPUT_PULLUP);
 
     bool connected = mpu.testConnection();
@@ -145,7 +160,9 @@ void loop() {
         float finalRoll = smoothRoll - rollOffset;
 
         if (streamData) {
-            Serial.printf("{\"yaw\": %.2f, \"pitch\": %.2f, \"roll\": %.2f}\n", finalYaw, finalPitch, finalRoll);
+            if (millis() - lastBatteryCheck > batteryInterval || lastBatteryCheck == 0) { updateBattery(); lastBatteryCheck = millis(); }
+            Serial.printf("{\\"yaw\\": %.2f, \\"pitch\\": %.2f, \\"roll\\": %.2f, \\"batt\\": %.2f}\\n", finalYaw, finalPitch, finalRoll, batteryVoltage);
         }
     }
 }
+

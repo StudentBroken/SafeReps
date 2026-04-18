@@ -60,8 +60,8 @@ const romanianDeadlift = Exercise(
 const bicepCurl = Exercise(
   name: 'Bicep Curl',
   primaryAngle: _elbowAngle,
-  topThreshold: 150,
-  bottomThreshold: 60,
+  topThreshold: 160,
+  bottomThreshold: 45,
   cues: [
     'Keep elbows fixed',
     'Full range of motion',
@@ -80,13 +80,27 @@ const overheadPress = Exercise(
   ],
 );
 
+const lateralRaise = Exercise(
+  name: 'Lateral Raise',
+  primaryAngle: _shoulderAngle,
+  topThreshold: 20,
+  bottomThreshold: 85,
+  cues: [
+    'Slight bend in elbows',
+    'Raise to shoulder height',
+    'Control the descent',
+  ],
+);
+
 const List<Exercise> builtInExercises = [
   squat,
   romanianDeadlift,
   bicepCurl,
   overheadPress,
+  lateralRaise,
 ];
 
 double? _kneeAngle(JointAngles a) => a.avgKnee;
 double? _hipAngle(JointAngles a) => a.avgHip;
 double? _elbowAngle(JointAngles a) => a.avgElbow;
+double? _shoulderAngle(JointAngles a) => a.avgShoulder;

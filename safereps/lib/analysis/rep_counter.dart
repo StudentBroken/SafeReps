@@ -59,34 +59,41 @@ class RepCounter {
     );
   }
 
-  RepPhase _nextPhase(RepPhase current, double angle) {
-    final top = exercise.topThreshold;
-    final bottom = exercise.bottomThreshold;
+  bool get _inverted => exercise.topThreshold < exercise.bottomThreshold;
 
+  bool _pastTop(double angle) => _inverted
+      ? angle <= exercise.topThreshold
+      : angle >= exercise.topThreshold;
+
+  bool _pastBottom(double angle) => _inverted
+      ? angle >= exercise.bottomThreshold
+      : angle <= exercise.bottomThreshold;
+
+  RepPhase _nextPhase(RepPhase current, double angle) {
     switch (current) {
       case RepPhase.idle:
-        if (angle >= top) return RepPhase.top;
+        if (_pastTop(angle)) return RepPhase.top;
         return RepPhase.idle;
 
       case RepPhase.top:
-        if (angle < top) return RepPhase.descending;
+        if (!_pastTop(angle)) return RepPhase.descending;
         return RepPhase.top;
 
       case RepPhase.descending:
-        if (angle <= bottom) return RepPhase.bottom;
-        if (angle >= top) return RepPhase.top; // stood back up without hitting bottom
+        if (_pastBottom(angle)) return RepPhase.bottom;
+        if (_pastTop(angle)) return RepPhase.top; // stood back up without hitting bottom
         return RepPhase.descending;
 
       case RepPhase.bottom:
-        if (angle > bottom) return RepPhase.ascending;
+        if (!_pastBottom(angle)) return RepPhase.ascending;
         return RepPhase.bottom;
 
       case RepPhase.ascending:
-        if (angle >= top) {
+        if (_pastTop(angle)) {
           _reps++;
           return RepPhase.top;
         }
-        if (angle <= bottom) return RepPhase.bottom; // dipped again
+        if (_pastBottom(angle)) return RepPhase.bottom; // dipped again
         return RepPhase.ascending;
     }
   }
