@@ -10,7 +10,9 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'pose/mlkit_pose_estimator.dart';
 import 'pose/pose_estimator.dart';
+import 'pose/skeleton_smoother.dart';
 import 'pose_painter.dart';
+import 'analysis/joint_angles.dart';
 
 class PoseCameraPage extends StatefulWidget {
   const PoseCameraPage({super.key, required this.cameras});
@@ -32,6 +34,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
 
   CameraController? _controller;
   PoseEstimator? _estimator;
+  final SkeletonSmoother _smoother = SkeletonSmoother();
   int _cameraIndex = 0;
   bool _busy = false;
   bool _initializing = false;
@@ -92,7 +95,12 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return;
     }
     final estimator = MlKitPoseEstimator();
-    await estimator.initialize();
+    try {
+      await estimator.initialize();
+    } catch (e) {
+      setState(() => _error = 'Failed to initialize pose detector: $e');
+      return;
+    }
     _estimator = estimator;
 
     _cameraIndex = widget.cameras.indexWhere(
@@ -112,6 +120,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       _busy = false;
       _skeletons = const [];
       _frameMeta = null;
+      _smoother.reset();
       if (mounted) setState(() {});
 
       if (old != null) {
@@ -156,6 +165,26 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     await _startCamera();
   }
 
+  Future<void> _copyAngles() async {
+    if (_skeletons.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No person detected to copy angles.')),
+      );
+      return;
+    }
+    final sk = _skeletons.first;
+    final angles = computeJointAngles(sk);
+    final text = angles.toClipboardString();
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Joint angles copied to clipboard!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _onCameraImage(CameraImage image) async {
     final controller = _controller;
     final estimator = _estimator;
@@ -177,7 +206,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
 
       if (!mounted) return;
       setState(() {
-        _skeletons = skeletons;
+        _skeletons = _smoother.smooth(skeletons);
         _frameMeta = FrameMeta(
           imageSize: meta.imageSize,
           rotation: meta.rotation,
@@ -228,6 +257,11 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       appBar: AppBar(
         title: const Text('SafeReps'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: _copyAngles,
+            tooltip: 'Copy joint angles',
+          ),
           if (widget.cameras.length > 1)
             IconButton(
               icon: const Icon(Icons.cameraswitch),
@@ -245,10 +279,23 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Center(
-          child: Text(
-            _error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () {
+                  setState(() => _error = null);
+                  _bootstrap();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
       );

@@ -37,6 +37,19 @@ class JointAngles {
     if (b == null) return a;
     return (a + b) / 2;
   }
+
+  String toClipboardString() {
+    return [
+      if (leftKnee != null) 'Left Knee: ${leftKnee!.toStringAsFixed(1)}°',
+      if (rightKnee != null) 'Right Knee: ${rightKnee!.toStringAsFixed(1)}°',
+      if (leftHip != null) 'Left Hip: ${leftHip!.toStringAsFixed(1)}°',
+      if (rightHip != null) 'Right Hip: ${rightHip!.toStringAsFixed(1)}°',
+      if (leftElbow != null) 'Left Elbow: ${leftElbow!.toStringAsFixed(1)}°',
+      if (rightElbow != null) 'Right Elbow: ${rightElbow!.toStringAsFixed(1)}°',
+      if (leftShoulder != null) 'Left Shoulder: ${leftShoulder!.toStringAsFixed(1)}°',
+      if (rightShoulder != null) 'Right Shoulder: ${rightShoulder!.toStringAsFixed(1)}°',
+    ].join('\n');
+  }
 }
 
 JointAngles computeJointAngles(Skeleton sk) {
