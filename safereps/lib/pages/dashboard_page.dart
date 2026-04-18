@@ -156,14 +156,47 @@ class _DashHeader extends StatelessWidget {
         : hour < 17
             ? 'Good afternoon'
             : 'Good evening';
+    final themeColors = AppTheme.colors(context);
     return Row(
       children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(6),
+          child: Image.asset(
+            '../assets/SafeReps_Logo.png',
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(width: 14),
         Expanded(
-          child: Text(greeting,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineMedium
-                  ?.copyWith(fontSize: 24)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(greeting,
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium
+                      ?.copyWith(fontSize: 22, height: 1.1)),
+              Text('Push your limits safely',
+                  style: TextStyle(
+                      color: themeColors.textLight,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
         const _BlePill(),
       ],

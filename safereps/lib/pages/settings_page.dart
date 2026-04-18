@@ -144,7 +144,7 @@ class SettingsPage extends StatelessWidget {
                       Switch(
                         value: coach.captions,
                         onChanged: coach.setCaptions,
-                        activeColor: Theme.of(context).colorScheme.primary,
+                        activeTrackColor: Theme.of(context).colorScheme.primary,
                       ),
                     ],
                   ),
@@ -392,11 +392,15 @@ class _AppIconBadge extends StatelessWidget {
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: primary,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: primary.withValues(alpha: 0.2), width: 1),
       ),
-      child: const Icon(Icons.fitness_center_rounded,
-          color: Colors.white, size: 18),
+      padding: const EdgeInsets.all(4),
+      child: Image.asset(
+        '../assets/SafeReps_Logo.png',
+        fit: BoxFit.contain,
+      ),
     );
   }
 }

@@ -55,17 +55,24 @@ class _ExerciseSummary {
 
   List<String> get recommendations {
     final recs = <String>[];
-    if (avgQuality < 70)
+    if (avgQuality < 70) {
       recs.add('Consider lighter weights for better control.');
-    if (hadSustainedTremor)
+    }
+    if (hadSustainedTremor) {
       recs.add('Fatigue detected — rest more between sets.');
-    if (hadSustainedSwing)
+    }
+    if (hadSustainedSwing) {
       recs.add('Slow down — control the movement on both phases.');
-    if (hadYawIssue)
+    }
+    if (hadYawIssue) {
       recs.add('Keep your arm in the lateral plane — avoid reaching forward.');
-    if (hadRollIssue) recs.add('Maintain forearm rotation through the lift.');
-    if (hadPitchIssue)
+    }
+    if (hadRollIssue) {
+      recs.add('Maintain forearm rotation through the lift.');
+    }
+    if (hadPitchIssue) {
       recs.add('Keep your forearm supinated throughout the curl.');
+    }
     return recs;
   }
 }
@@ -149,6 +156,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   late final List<_ExerciseSummary> _exerciseSummaries;
   bool _bleWasConnected = false;
 
+  // ── IMU-gated rep counting ────────────────────────────────────────────────
+  int _confirmedReps = 0;          // reps counted only after IMU confirms movement
+  bool _imuRepConfirmed = false;   // IMU confirmed current rep's peak position
+  bool _incompleteRepPending = false; // ML Kit counted a rep but IMU gate failed
+
   // ── Derived getters ───────────────────────────────────────────────────────
 
   ExerciseGoal get _currentGoal => widget.goals.exercises[_exerciseIndex];
@@ -160,7 +172,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
           : 1);
 
   double get _repProgress =>
-      ((_repResult?.totalReps ?? 0) / _effectiveRepsGoal).clamp(0.0, 1.0);
+      (_confirmedReps / _effectiveRepsGoal).clamp(0.0, 1.0);
+
+
 
   Exercise get _currentExercise => builtInExercises.firstWhere(
     (e) => e.name == _currentGoal.name,
@@ -181,6 +195,17 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
       return _formTracker.currentQuality / 100.0;
     }
     return _currentRepQuality / 100.0;
+  }
+
+  /// Form intensity 0–1: max of tremor badness and swing badness (2.5× threshold = full bar).
+  double get _formIntensity {
+    if (!_bleConnected || _phase != _Phase.active) return 0.0;
+    final data = widget.ble?.latestData;
+    if (data == null) return 0.0;
+    final profile = imuProfileForExercise(_currentGoal.name);
+    final tremorBad = (data.tremor / (profile.tremorThreshold * 2.5)).clamp(0.0, 1.0);
+    final swingBad = (data.swing / (profile.swingThreshold * 2.5)).clamp(0.0, 1.0);
+    return tremorBad > swingBad ? tremorBad : swingBad;
   }
 
   /// Rep completion bar (0–1): ML-Kit angle-based + optional IMU pitch.
@@ -420,14 +445,28 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         } else if (_phase == _Phase.active) {
           final counter = _repCounter;
           if (counter != null && angles != null) {
+            final prevPhase = _repResult?.phase;
             _repResult = counter.update(angles);
             final newReps = _repResult?.totalReps ?? 0;
+            final newPhase = _repResult?.phase;
+
+            // Reset IMU gate when a new rep begins (top → descending).
+            if (prevPhase == RepPhase.top &&
+                newPhase == RepPhase.descending) {
+              _imuRepConfirmed = false;
+            }
+
             if (newReps > _lastKnownReps) {
-              // Rep just completed — record result, reset tracker + alert flags.
-              final repResult = _formTracker.finish();
-              _currentRepQuality = repResult.quality;
-              if (_exerciseIndex < _exerciseSummaries.length) {
-                _exerciseSummaries[_exerciseIndex].repResults.add(repResult);
+              final imuOk = !_bleConnected || _imuRepConfirmed;
+              if (imuOk) {
+                _confirmedReps++;
+                final repResult = _formTracker.finish();
+                _currentRepQuality = repResult.quality;
+                if (_exerciseIndex < _exerciseSummaries.length) {
+                  _exerciseSummaries[_exerciseIndex].repResults.add(repResult);
+                }
+              } else {
+                _incompleteRepPending = true;
               }
               _formTracker.reset();
               _tremorAlertShown = false;
@@ -438,6 +477,12 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
           }
         }
       });
+
+      // IMU-gated rep: rep was blocked — notify user outside setState.
+      if (_incompleteRepPending) {
+        _incompleteRepPending = false;
+        _showNotification('Raise higher — rep not counted');
+      }
 
       // Trigger calibration completion outside setState (side-effects).
       if (_phase == _Phase.imuCalibration &&
@@ -499,6 +544,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
 
     final profile = imuProfileForExercise(_currentGoal.name);
     _formTracker.update(data, dt, profile);
+    _checkImuRepConfirmation(data);
 
     // Axis deviations — only during the active portion of a rep.
     final repPhase = _repResult?.phase;
@@ -552,7 +598,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   void _fireCoachCue(CueCategory cat, {bool correction = false}) {
     final now = DateTime.now();
     if (_lastCueFiredAt != null &&
-        now.difference(_lastCueFiredAt!) < _cueCooldown) return;
+        now.difference(_lastCueFiredAt!) < _cueCooldown) {
+      return;
+    }
     _lastCueFiredAt = now;
     if (correction) {
       _coach.playCorrection(cat);
@@ -583,7 +631,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
 
   void _checkFatigue() {
     if (_fatigueRepsTarget != null) return;
-    final completed = _repResult?.totalReps ?? 0;
+    final completed = _confirmedReps;
     final remaining = _currentGoal.repsPerSet - completed;
     if (remaining >= 4) {
       final stopAt = completed + 3;
@@ -592,6 +640,19 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         'Fatigue detected — finishing at $stopAt reps',
         good: true,
       );
+    }
+  }
+
+  /// Sets _imuRepConfirmed when pitch confirms the rep peak was reached.
+  void _checkImuRepConfirmation(ImuData data) {
+    if (_imuRepConfirmed) return;
+    final repPhase = _repResult?.phase;
+    if (repPhase != RepPhase.bottom && repPhase != RepPhase.ascending) return;
+    if (_currentGoal.name == 'Lateral Raise') {
+      // After ZERO at T-pose: rest≈-90°, T-pose≈0°. Require pitch > -45° (halfway up).
+      if (data.pitch > -45) _imuRepConfirmed = true;
+    } else {
+      _imuRepConfirmed = true;
     }
   }
 
@@ -638,7 +699,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
       setState(() => _previewCountdown--);
       if (_previewCountdown <= 0) {
         t.cancel();
-        if (widget.ble != null) {
+        if (_bleConnected) {
           _startImuCalibration();
         } else {
           _startGetReady();
@@ -683,15 +744,16 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _tremorAlertShown = false;
     _swingAlertShown = false;
     _fatigueRepsTarget = null;
+    _confirmedReps = 0;
+    _imuRepConfirmed = false;
+    _incompleteRepPending = false;
     if (_bleConnected) _bleWasConnected = true;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();
   }
 
   void _checkSetComplete() {
-    final result = _repResult;
-    if (result == null) return;
-    if (result.totalReps >= _effectiveRepsGoal) {
+    if (_confirmedReps >= _effectiveRepsGoal) {
       _advanceSession();
     }
   }
@@ -852,6 +914,19 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               ),
             ),
 
+          // ── Active: form intensity bar (right side, BLE only) ──
+          if (isActive && _bleConnected)
+            Positioned(
+              right: 14,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: SafeArea(
+                  child: _FormIntensityBar(intensity: _formIntensity),
+                ),
+              ),
+            ),
+
           // ── Active: rep count pill + completion bar ────────────
           if (isActive && hasExercise)
             Positioned(
@@ -867,7 +942,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                       _RepCompletionBar(progress: _repCompletionProgress),
                       const SizedBox(height: 8),
                       _RepCountPill(
-                        reps: _repResult?.totalReps ?? 0,
+                        reps: _confirmedReps,
                         goal: _effectiveRepsGoal,
                         exerciseName: _currentGoal.name,
                         fatigue: _fatigueRepsTarget != null,
@@ -2035,6 +2110,67 @@ class _ExerciseReportCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Form intensity bar (right-side live feedback)
+// ---------------------------------------------------------------------------
+
+class _FormIntensityBar extends StatelessWidget {
+  const _FormIntensityBar({required this.intensity});
+  final double intensity; // 0–1
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 12,
+        height: 140,
+        child: CustomPaint(
+          painter: _IntensityBarPainter(intensity: intensity),
+        ),
+      ),
+    );
+  }
+}
+
+class _IntensityBarPainter extends CustomPainter {
+  const _IntensityBarPainter({required this.intensity});
+  final double intensity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Background track.
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint()..color = Colors.white12,
+    );
+
+    if (intensity <= 0) return;
+
+    final fillH = size.height * intensity.clamp(0.0, 1.0);
+    final fillTop = size.height - fillH;
+
+    // Gradient fill: green (bottom) → yellow → red (top).
+    canvas.drawRect(
+      Rect.fromLTWH(0, fillTop, size.width, fillH),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            Color(0xFF4CAF50), // green — smooth movement
+            Color(0xFFFFC107), // yellow — borderline
+            Color(0xFFE53935), // red — too fast / swinging
+          ],
+          stops: [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_IntensityBarPainter old) => old.intensity != intensity;
 }
 
 class _IssueChip extends StatelessWidget {
