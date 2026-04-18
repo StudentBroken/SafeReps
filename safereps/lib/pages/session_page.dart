@@ -945,7 +945,7 @@ class _TposeCalibrationOverlay extends StatelessWidget {
             right: 0,
             bottom: -60, // Nudge further down
             child: Transform.scale(
-              scale: 1.5, // Marginally smaller
+              scale: 1.1, // Marginally smaller
               alignment: Alignment.bottomCenter,
               child: ColorFiltered(
                 colorFilter: ColorFilter.mode(
