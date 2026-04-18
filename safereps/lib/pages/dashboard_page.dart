@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart'
     show BluetoothDevice, DeviceIdentifier, ScanResult;
+import 'package:video_player/video_player.dart';
 
 import '../models/goals_model.dart';
 import '../services/ble_service.dart';
@@ -1376,7 +1377,41 @@ class _ArrowBtn extends StatelessWidget {
   }
 }
 
-// ── Proper Form safety card (generic) ────────────────────────────────────────
+// ── Proper Form card ─────────────────────────────────────────────────────────
+
+/// Describes one exercise entry shown in Proper Form.
+class _ProperFormExercise {
+  const _ProperFormExercise({
+    required this.name,
+    required this.imagePath,
+    required this.videoPath,
+    required this.icon,
+  });
+  final String name;
+  final String imagePath;
+  final String videoPath;
+  final IconData icon;
+}
+
+/// Master list — add more entries here in the future.
+const List<_ProperFormExercise> _properFormExercises = [
+  _ProperFormExercise(
+    name: 'Lateral Raises',
+    imagePath:
+        '../assets/Demonstration videos and images/Lateral raises no background.png',
+    videoPath:
+        '../assets/Demonstration videos and images/lateral raises.mp4',
+    icon: Icons.accessibility_new_rounded,
+  ),
+  _ProperFormExercise(
+    name: 'Bicep Curls',
+    imagePath:
+        '../assets/Demonstration videos and images/Bicep Curls no background.png',
+    videoPath:
+        '../assets/Demonstration videos and images/bicep curls.mp4',
+    icon: Icons.fitness_center_rounded,
+  ),
+];
 
 class _SafetyCard extends StatelessWidget {
   const _SafetyCard({
@@ -1393,7 +1428,7 @@ class _SafetyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeColors = AppTheme.colors(context);
     return GestureDetector(
-      onTap: () => _showModal(context),
+      onTap: () => _showPicker(context),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
         tint: color.withAlpha(60),
@@ -1429,24 +1464,37 @@ class _SafetyCard extends StatelessWidget {
     );
   }
 
-  void _showModal(BuildContext context) {
+  /// Step 1 — exercise picker sheet.
+  void _showPicker(BuildContext context) {
     final themeColors = AppTheme.colors(context);
-    showDialog(
+    final primary = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         child: GlassCard(
-          tint: color.withAlpha(80),
+          borderRadius: 24,
+          tint: color.withAlpha(60),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(icon, color: themeColors.textDark, size: 20),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: primary, size: 18),
+                  ),
+                  const SizedBox(width: 10),
                   Text(
-                    title,
+                    'Proper Form',
                     style: TextStyle(
                       color: themeColors.textDark,
                       fontSize: 18,
@@ -1455,18 +1503,28 @@ class _SafetyCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Text(
-                'Tutorial content coming soon.\n\nThis section will guide you through safe exercise practices tailored to each movement.',
-                style: TextStyle(
-                    color: themeColors.textMid, fontSize: 13, height: 1.5),
+                'Choose an exercise to see the correct form.',
+                style: TextStyle(color: themeColors.textMid, fontSize: 12),
               ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Got it'),
+              const SizedBox(height: 16),
+              ..._properFormExercises.map(
+                (ex) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ExerciseTile(
+                    exercise: ex,
+                    accentColor: primary,
+                    onTap: () {
+                      Navigator.pop(context); // close picker
+                      showDialog(
+                        context: context,
+                        barrierColor: Colors.black54,
+                        builder: (_) =>
+                            _ProperFormViewerDialog(exercise: ex),
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
@@ -1476,6 +1534,297 @@ class _SafetyCard extends StatelessWidget {
     );
   }
 }
+
+/// Single row tile in the exercise picker.
+class _ExerciseTile extends StatelessWidget {
+  const _ExerciseTile({
+    required this.exercise,
+    required this.accentColor,
+    required this.onTap,
+  });
+  final _ProperFormExercise exercise;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        borderRadius: 14,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(exercise.icon, color: accentColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                exercise.name,
+                style: TextStyle(
+                  color: themeColors.textDark,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: themeColors.unselected, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Step 2 — full-screen media viewer (image ↔ video via arrow).
+class _ProperFormViewerDialog extends StatefulWidget {
+  const _ProperFormViewerDialog({required this.exercise});
+  final _ProperFormExercise exercise;
+
+  @override
+  State<_ProperFormViewerDialog> createState() =>
+      _ProperFormViewerDialogState();
+}
+
+class _ProperFormViewerDialogState extends State<_ProperFormViewerDialog>
+    with SingleTickerProviderStateMixin {
+  // 0 = image, 1 = video
+  int _mediaIndex = 0;
+
+  VideoPlayerController? _videoCtrl;
+  bool _videoReady = false;
+
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      value: 1,
+    );
+    _fadeAnim = _fadeCtrl;
+  }
+
+  @override
+  void dispose() {
+    _fadeCtrl.dispose();
+    _videoCtrl?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initVideo() async {
+    if (_videoCtrl != null) return;
+    final ctrl = VideoPlayerController.asset(widget.exercise.videoPath);
+    await ctrl.initialize();
+    await ctrl.setLooping(true);
+    await ctrl.play();
+    if (mounted) {
+      setState(() {
+        _videoCtrl = ctrl;
+        _videoReady = true;
+      });
+    }
+  }
+
+  Future<void> _go(int delta) async {
+    await _fadeCtrl.reverse();
+    if (!mounted) return;
+    final next = (_mediaIndex + delta + 2) % 2;
+    setState(() => _mediaIndex = next);
+    if (next == 1) _initVideo();
+    _fadeCtrl.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    final isImage = _mediaIndex == 0;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
+      child: GlassCard(
+        borderRadius: 24,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        tint: primary.withValues(alpha: 0.06),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Header ──────────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(widget.exercise.icon, color: primary, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.exercise.name,
+                    style: TextStyle(
+                      color: themeColors.textDark,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.close_rounded,
+                      color: themeColors.textLight, size: 22),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Media row (arrow | content | arrow) ───────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _ArrowBtn(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  onTap: () => _go(-1),
+                  primary: primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _fadeAnim,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: isImage
+                            ? Image.asset(
+                                widget.exercise.imagePath,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: primary.withValues(alpha: 0.08),
+                                  child: Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: primary.withValues(alpha: 0.4),
+                                    size: 48,
+                                  ),
+                                ),
+                              )
+                            : _videoReady && _videoCtrl != null
+                                ? GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _videoCtrl!.value.isPlaying
+                                            ? _videoCtrl!.pause()
+                                            : _videoCtrl!.play();
+                                      });
+                                    },
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        VideoPlayer(_videoCtrl!),
+                                        AnimatedOpacity(
+                                          opacity: _videoCtrl!.value.isPlaying
+                                              ? 0
+                                              : 1,
+                                          duration:
+                                              const Duration(milliseconds: 200),
+                                          child: Container(
+                                            width: 52,
+                                            height: 52,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black45,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                                Icons.play_arrow_rounded,
+                                                color: Colors.white,
+                                                size: 30),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Container(
+                                    color: primary.withValues(alpha: 0.08),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                          color: primary, strokeWidth: 2.5),
+                                    ),
+                                  ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _ArrowBtn(
+                  icon: Icons.arrow_forward_ios_rounded,
+                  onTap: () => _go(1),
+                  primary: primary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Mode label + dot indicator ────────────────────────────
+            Text(
+              isImage ? 'Form Reference' : 'Video Demo',
+              style: TextStyle(
+                color: themeColors.textDark,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (!isImage)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Tap the video to pause / resume.',
+                  style:
+                      TextStyle(color: themeColors.textLight, fontSize: 11),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(2, (i) {
+                final active = i == _mediaIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: active ? 20 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? primary
+                        : primary.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _StartButton extends StatelessWidget {
   const _StartButton({required this.pulseAnim, required this.onTap});
