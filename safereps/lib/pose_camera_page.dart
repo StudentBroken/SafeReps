@@ -216,7 +216,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     }
     final sk = _skeletons.first;
     final angles = computeJointAngles(sk);
-    final text = angles.toClipboardString();
+    final text = angles.toClipboardString(sk);
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

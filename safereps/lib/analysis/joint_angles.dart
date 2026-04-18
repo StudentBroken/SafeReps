@@ -38,19 +38,27 @@ class JointAngles {
     return (a + b) / 2;
   }
 
-  String toClipboardString() {
-    String f(double? v) => v?.toStringAsFixed(0) ?? '?';
+  String toClipboardString(Skeleton sk) {
+    String f(double? v, List<SkeletonJoint> joints) {
+      if (v != null) return v.toStringAsFixed(0);
+      final missing = joints.where((j) => sk[j] == null).map((j) => j.name.substring(0, 1) + j.name.substring(j.name.length - 2)).join('+');
+      if (missing.isNotEmpty) return 'm:$missing';
+      final lowVis = joints.where((j) => sk[j] != null && sk[j]!.visibility < 0.05).map((j) => j.name.substring(0, 1) + j.name.substring(j.name.length - 2)).join('!');
+      if (lowVis.isNotEmpty) return 'v:$lowVis';
+      return '?';
+    }
+
     final parts = [
-      'lk:${f(leftKnee)}',
-      'rk:${f(rightKnee)}',
-      'lh:${f(leftHip)}',
-      'rh:${f(rightHip)}',
-      'le:${f(leftElbow)}',
-      're:${f(rightElbow)}',
-      'ls:${f(leftShoulder)}',
-      'rs:${f(rightShoulder)}',
+      'lk:${f(leftKnee, [SkeletonJoint.leftHip, SkeletonJoint.leftKnee, SkeletonJoint.leftAnkle])}',
+      'rk:${f(rightKnee, [SkeletonJoint.rightHip, SkeletonJoint.rightKnee, SkeletonJoint.rightAnkle])}',
+      'lh:${f(leftHip, [SkeletonJoint.leftShoulder, SkeletonJoint.leftHip, SkeletonJoint.leftKnee])}',
+      'rh:${f(rightHip, [SkeletonJoint.rightShoulder, SkeletonJoint.rightHip, SkeletonJoint.rightKnee])}',
+      'le:${f(leftElbow, [SkeletonJoint.leftShoulder, SkeletonJoint.leftElbow, SkeletonJoint.leftWrist])}',
+      're:${f(rightElbow, [SkeletonJoint.rightShoulder, SkeletonJoint.rightElbow, SkeletonJoint.rightWrist])}',
+      'ls:${f(leftShoulder, [SkeletonJoint.leftHip, SkeletonJoint.leftShoulder, SkeletonJoint.leftElbow])}',
+      'rs:${f(rightShoulder, [SkeletonJoint.rightHip, SkeletonJoint.rightShoulder, SkeletonJoint.rightElbow])}',
     ];
-    return 'pose_angles: ${parts.join(',')} deg';
+    return 'pose_angles: ${parts.join(',')} joints:${sk.joints.length} deg';
   }
 }
 
@@ -73,8 +81,8 @@ double? _angle(Skeleton sk, SkeletonJoint a, SkeletonJoint b, SkeletonJoint c) {
   final lb = sk[b];
   final lc = sk[c];
   if (la == null || lb == null || lc == null) return null;
-  // Lowered threshold to 0.1 to be more forgiving in the debug viewer.
-  if (la.visibility < 0.1 || lb.visibility < 0.1 || lc.visibility < 0.1) {
+  // Lowered threshold to 0.05 to be extremely forgiving for debug.
+  if (la.visibility < 0.05 || lb.visibility < 0.05 || lc.visibility < 0.05) {
     return null;
   }
 
