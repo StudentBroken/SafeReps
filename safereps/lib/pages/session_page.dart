@@ -1307,25 +1307,31 @@ class _RepCountPill extends StatelessWidget {
     required this.reps,
     required this.goal,
     required this.exerciseName,
+    this.fatigue = false,
   });
 
   final int reps;
   final int goal;
   final String exerciseName;
+  final bool fatigue; // true when fatigue override is active
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final bgColor = fatigue
+        ? const Color(0xEB7B5200) // amber-tinted when fatigued
+        : primary.withValues(alpha: 0.92);
 
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
         decoration: BoxDecoration(
-          color: primary.withValues(alpha: 0.92),
+          color: bgColor,
           borderRadius: BorderRadius.circular(100),
           boxShadow: [
             BoxShadow(
-              color: primary.withValues(alpha: 0.4),
+              color: (fatigue ? const Color(0xFFFFA000) : primary)
+                  .withValues(alpha: 0.4),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -1356,8 +1362,10 @@ class _RepCountPill extends StatelessWidget {
             ),
             Text(
               ' / $goal',
-              style: const TextStyle(
-                color: Colors.white60,
+              style: TextStyle(
+                color: fatigue
+                    ? const Color(0xFFFFA000)
+                    : Colors.white60,
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
               ),
@@ -1374,19 +1382,28 @@ class _RepCountPill extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _NotificationBanner extends StatelessWidget {
-  const _NotificationBanner({required this.message});
+  const _NotificationBanner({required this.message, this.isGood = false});
   final String message;
+  final bool isGood;
 
   @override
   Widget build(BuildContext context) {
+    final bgColor =
+        isGood ? const Color(0xCC2E7D32) : const Color(0xCCE8175A);
+    final glowColor =
+        isGood ? const Color(0xFF2E7D32) : const Color(0xFFE8175A);
+    final icon = isGood
+        ? Icons.check_circle_outline_rounded
+        : Icons.warning_amber_rounded;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xCCE8175A),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE8175A).withValues(alpha: 0.3),
+            color: glowColor.withValues(alpha: 0.3),
             blurRadius: 12,
             spreadRadius: 0,
           ),
@@ -1395,8 +1412,7 @@ class _NotificationBanner extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: Colors.white, size: 16),
+          Icon(icon, color: Colors.white, size: 16),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
