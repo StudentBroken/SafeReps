@@ -875,69 +875,94 @@ class _TposeCalibrationOverlay extends StatelessWidget {
 
     return Container(
       color: Colors.black54,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRect(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Transform.scale(
-                    scale: 1.7,
-                    alignment: Alignment.bottomCenter,
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        silhouetteColor.withValues(alpha: 0.4),
-                        BlendMode.srcATop,
-                      ),
-                      child: Image.asset(
-                        'assets/calibration/calib_image.webp',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Silhouette - positioned at the bottom, slightly oversized
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: -20, // Nudge slightly below bottom for better "grounding"
+            child: Transform.scale(
+              scale: 1.85,
+              alignment: Alignment.bottomCenter,
+              child: ColorFiltered(
+                colorFilter: ColorFilter.mode(
+                  silhouetteColor.withValues(alpha: 0.4),
+                  BlendMode.srcATop,
+                ),
+                child: Image.asset(
+                  'assets/calibration/calib_image.webp',
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(28, 20, 28, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    calibrated
-                        ? 'Calibrated! Grab your weights…'
-                        : isTposeDetected
-                            ? 'Hold still…'
-                            : 'Strike a T-pose to calibrate',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+          ),
+
+          // Content overlay
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(28, 48, 28, 48),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.8),
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      calibrated
+                          ? 'Calibrated! Grab your weights…'
+                          : isTposeDetected
+                              ? 'Hold still…'
+                              : 'Strike a T-pose to calibrate',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: SizedBox(
-                      height: 6,
-                      child: LinearProgressIndicator(
-                        value: holdProgress,
-                        backgroundColor: Colors.white24,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          calibrated
-                              ? const Color(0xFF4CAF50)
-                              : silhouetteColor,
+                    const SizedBox(height: 20),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: SizedBox(
+                        height: 6,
+                        child: LinearProgressIndicator(
+                          value: holdProgress,
+                          backgroundColor: Colors.white24,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            calibrated
+                                ? const Color(0xFF4CAF50)
+                                : silhouetteColor,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
