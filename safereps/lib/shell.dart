@@ -195,9 +195,9 @@ class _FloatingNav extends StatelessWidget {
 
               // ── Layer 4: rep speed pill ───────────────────────────────────
               Positioned(
-                right: 10,
-                top: 10,
-                bottom: 10,
+                right: 0,
+                top: 0,
+                bottom: 0,
                 child: _RepSpeedPill(repSpeed: SessionScope.of(context).repSpeed),
               ),
             ],
@@ -509,16 +509,17 @@ class _RepSpeedPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOut,
-        width: 36,
+        width: 50,
         decoration: BoxDecoration(
           color: speed != null ? _colorForSpeed(speed) : const Color(0xFF43A047),
-          borderRadius: BorderRadius.circular(18),
+          // Match the right cap of the nav pill exactly
+          borderRadius: const BorderRadius.horizontal(right: Radius.circular(_kPillH / 2)),
           boxShadow: [
             BoxShadow(
               color: (speed != null ? _colorForSpeed(speed) : const Color(0xFF43A047))
-                  .withValues(alpha: 0.45),
-              blurRadius: 10,
-              spreadRadius: 1,
+                  .withValues(alpha: 0.5),
+              blurRadius: 14,
+              spreadRadius: 2,
             ),
           ],
         ),
