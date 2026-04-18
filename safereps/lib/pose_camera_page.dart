@@ -50,6 +50,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
 
   List<Skeleton> _skeletons = const [];
   FrameMeta? _frameMeta;
+  JointAngles? _angles;
 
   final List<DateTime> _frameTimes = [];
   int _fps = 0;
@@ -208,14 +209,14 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   }
 
   Future<void> _copyAngles() async {
-    if (_skeletons.isEmpty) {
+    final angles = _angles;
+    if (_skeletons.isEmpty || angles == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No person detected to copy angles.')),
       );
       return;
     }
     final sk = _skeletons.first;
-    final angles = computeJointAngles(sk);
     final text = angles.toClipboardString(sk);
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
@@ -249,6 +250,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       if (!mounted) return;
       setState(() {
         _skeletons = _smoother.smooth(skeletons);
+        _angles = _skeletons.isNotEmpty ? computeJointAngles(_skeletons.first) : null;
         _frameMeta = FrameMeta(
           imageSize: meta.imageSize,
           rotation: meta.rotation,
@@ -370,7 +372,11 @@ class _PoseCameraPageState extends State<PoseCameraPage>
                 CameraPreview(controller),
                 if (meta != null)
                   CustomPaint(
-                    painter: PosePainter(skeletons: _skeletons, meta: meta),
+                    painter: PosePainter(
+                      skeletons: _skeletons,
+                      meta: meta,
+                      angles: _angles,
+                    ),
                   ),
               ],
             ),

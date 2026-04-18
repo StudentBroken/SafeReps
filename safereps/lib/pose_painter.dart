@@ -3,13 +3,15 @@ import 'dart:io' show Platform;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import 'analysis/joint_angles.dart';
 import 'pose/skeleton.dart';
 
 class PosePainter extends CustomPainter {
-  PosePainter({required this.skeletons, required this.meta});
+  PosePainter({required this.skeletons, required this.meta, this.angles});
 
   final List<Skeleton> skeletons;
   final FrameMeta meta;
+  final JointAngles? angles;
 
   static const _jointRadius = 4.0;
   static const _strokeWidth = 4.0;
@@ -35,6 +37,44 @@ class PosePainter extends CustomPainter {
           jointPaint,
         );
       }
+    }
+
+    final ang = angles;
+    if (ang != null && skeletons.isNotEmpty) {
+      _drawAngles(canvas, size, skeletons.first, ang);
+    }
+  }
+
+  void _drawAngles(Canvas canvas, Size size, Skeleton sk, JointAngles ang) {
+    final entries = <(SkeletonJoint, double?)>[
+      (SkeletonJoint.leftKnee, ang.leftKnee),
+      (SkeletonJoint.rightKnee, ang.rightKnee),
+      (SkeletonJoint.leftHip, ang.leftHip),
+      (SkeletonJoint.rightHip, ang.rightHip),
+      (SkeletonJoint.leftElbow, ang.leftElbow),
+      (SkeletonJoint.rightElbow, ang.rightElbow),
+      (SkeletonJoint.leftShoulder, ang.leftShoulder),
+      (SkeletonJoint.rightShoulder, ang.rightShoulder),
+    ];
+
+    for (final (joint, value) in entries) {
+      if (value == null) continue;
+      final pos = _project(sk[joint], size);
+      if (pos == null) continue;
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${value.toStringAsFixed(0)}°',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, pos + const Offset(8, -8));
     }
   }
 
@@ -89,7 +129,7 @@ class PosePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant PosePainter old) =>
-      old.skeletons != skeletons || old.meta != meta;
+      old.skeletons != skeletons || old.meta != meta || old.angles != angles;
 }
 
 /// Thin value object so [PosePainter] has no ML Kit dependency.
