@@ -46,19 +46,24 @@ class _ExerciseSummary {
       : repResults.fold(0.0, (s, r) => s + r.quality) / repResults.length;
 
   bool get hadSustainedTremor => repResults.any((r) => r.sustainedTremor);
-  bool get hadSustainedSwing  => repResults.any((r) => r.sustainedSwing);
-  bool get hadYawIssue   => repResults.any((r) => r.yawViolated);
-  bool get hadRollIssue  => repResults.any((r) => r.rollViolated);
+  bool get hadSustainedSwing => repResults.any((r) => r.sustainedSwing);
+  bool get hadYawIssue => repResults.any((r) => r.yawViolated);
+  bool get hadRollIssue => repResults.any((r) => r.rollViolated);
   bool get hadPitchIssue => repResults.any((r) => r.pitchViolated);
 
   List<String> get recommendations {
     final recs = <String>[];
-    if (avgQuality < 70) recs.add('Consider lighter weights for better control.');
-    if (hadSustainedTremor) recs.add('Fatigue detected — rest more between sets.');
-    if (hadSustainedSwing)  recs.add('Slow down — control the movement on both phases.');
-    if (hadYawIssue)  recs.add('Keep your arm in the lateral plane — avoid reaching forward.');
+    if (avgQuality < 70)
+      recs.add('Consider lighter weights for better control.');
+    if (hadSustainedTremor)
+      recs.add('Fatigue detected — rest more between sets.');
+    if (hadSustainedSwing)
+      recs.add('Slow down — control the movement on both phases.');
+    if (hadYawIssue)
+      recs.add('Keep your arm in the lateral plane — avoid reaching forward.');
     if (hadRollIssue) recs.add('Maintain forearm rotation through the lift.');
-    if (hadPitchIssue) recs.add('Keep your forearm supinated throughout the curl.');
+    if (hadPitchIssue)
+      recs.add('Keep your forearm supinated throughout the curl.');
     return recs;
   }
 }
@@ -74,8 +79,7 @@ class SessionPage extends StatefulWidget {
   State<SessionPage> createState() => _SessionPageState();
 }
 
-class _SessionPageState extends State<SessionPage>
-    with WidgetsBindingObserver {
+class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   // ── Camera ────────────────────────────────────────────────────────────────
   static const Map<DeviceOrientation, int> _orientations = {
     DeviceOrientation.portraitUp: 0,
@@ -139,8 +143,7 @@ class _SessionPageState extends State<SessionPage>
 
   // ── Derived getters ───────────────────────────────────────────────────────
 
-  ExerciseGoal get _currentGoal =>
-      widget.goals.exercises[_exerciseIndex];
+  ExerciseGoal get _currentGoal => widget.goals.exercises[_exerciseIndex];
 
   int get _effectiveRepsGoal =>
       _fatigueRepsTarget ??
@@ -152,9 +155,9 @@ class _SessionPageState extends State<SessionPage>
       ((_repResult?.totalReps ?? 0) / _effectiveRepsGoal).clamp(0.0, 1.0);
 
   Exercise get _currentExercise => builtInExercises.firstWhere(
-        (e) => e.name == _currentGoal.name,
-        orElse: () => builtInExercises.first,
-      );
+    (e) => e.name == _currentGoal.name,
+    orElse: () => builtInExercises.first,
+  );
 
   bool get _bleConnected =>
       widget.ble != null &&
@@ -197,8 +200,10 @@ class _SessionPageState extends State<SessionPage>
           ((angle - exercise.topThreshold) / range * 0.5).clamp(0.0, 0.5),
         RepPhase.bottom => 0.5,
         RepPhase.ascending =>
-          (0.5 + (1.0 - (angle - exercise.topThreshold) / range) * 0.5)
-              .clamp(0.5, 1.0),
+          (0.5 + (1.0 - (angle - exercise.topThreshold) / range) * 0.5).clamp(
+            0.5,
+            1.0,
+          ),
       };
     } else {
       final range = exercise.topThreshold - exercise.bottomThreshold;
@@ -208,8 +213,10 @@ class _SessionPageState extends State<SessionPage>
           ((exercise.topThreshold - angle) / range * 0.5).clamp(0.0, 0.5),
         RepPhase.bottom => 0.5,
         RepPhase.ascending =>
-          (0.5 + (angle - exercise.bottomThreshold) / range * 0.5)
-              .clamp(0.5, 1.0),
+          (0.5 + (angle - exercise.bottomThreshold) / range * 0.5).clamp(
+            0.5,
+            1.0,
+          ),
       };
     }
 
@@ -255,10 +262,9 @@ class _SessionPageState extends State<SessionPage>
       _notification = message;
       _notificationIsGood = good;
     });
-    _notificationTimer = Timer(
-      Duration(milliseconds: good ? 3500 : 2500),
-      () { if (mounted) setState(() => _notification = null); },
-    );
+    _notificationTimer = Timer(Duration(milliseconds: good ? 3500 : 2500), () {
+      if (mounted) setState(() => _notification = null);
+    });
   }
 
   @override
@@ -277,8 +283,7 @@ class _SessionPageState extends State<SessionPage>
   // ── Camera setup ──────────────────────────────────────────────────────────
 
   Future<void> _initCamera() async {
-    final avail =
-        cameras.isNotEmpty ? cameras : await _queryCameras();
+    final avail = cameras.isNotEmpty ? cameras : await _queryCameras();
     if (avail.isEmpty || !mounted) return;
 
     if (_estimator == null) {
@@ -342,8 +347,11 @@ class _SessionPageState extends State<SessionPage>
     // Capture before setState so post-setState check uses the start-of-frame value.
     final prevTposeStableAt = _tPoseStableAt;
     try {
-      final skeletons =
-          await estimator.processFrame(image, controller.description, meta);
+      final skeletons = await estimator.processFrame(
+        image,
+        controller.description,
+        meta,
+      );
       if (!mounted) return;
 
       final now = DateTime.now();
@@ -364,8 +372,9 @@ class _SessionPageState extends State<SessionPage>
       }
 
       final smoothed = _smoother.smooth(skeletons);
-      final angles =
-          smoothed.isNotEmpty ? computeJointAngles(smoothed.first) : null;
+      final angles = smoothed.isNotEmpty
+          ? computeJointAngles(smoothed.first)
+          : null;
 
       setState(() {
         _skeletons = smoothed;
@@ -380,8 +389,7 @@ class _SessionPageState extends State<SessionPage>
         if (_phase == _Phase.imuCalibration && !_tPoseCalibrating) {
           final ls = angles?.leftShoulder;
           final rs = angles?.rightShoulder;
-          final isTpose =
-              ls != null && rs != null && ls > 75 && rs > 75;
+          final isTpose = ls != null && rs != null && ls > 75 && rs > 75;
           _isTposeDetected = isTpose;
           if (isTpose) {
             _tPoseStableAt ??= now;
@@ -464,7 +472,8 @@ class _SessionPageState extends State<SessionPage>
 
     // Axis deviations — only during the active portion of a rep.
     final repPhase = _repResult?.phase;
-    final repActive = repPhase == RepPhase.descending ||
+    final repActive =
+        repPhase == RepPhase.descending ||
         repPhase == RepPhase.bottom ||
         repPhase == RepPhase.ascending;
     if (repActive) {
@@ -534,11 +543,11 @@ class _SessionPageState extends State<SessionPage>
   }
 
   static FrameRotation _toFrameRotation(InputImageRotation r) => switch (r) {
-        InputImageRotation.rotation0deg => FrameRotation.deg0,
-        InputImageRotation.rotation90deg => FrameRotation.deg90,
-        InputImageRotation.rotation180deg => FrameRotation.deg180,
-        InputImageRotation.rotation270deg => FrameRotation.deg270,
-      };
+    InputImageRotation.rotation0deg => FrameRotation.deg0,
+    InputImageRotation.rotation90deg => FrameRotation.deg90,
+    InputImageRotation.rotation180deg => FrameRotation.deg180,
+    InputImageRotation.rotation270deg => FrameRotation.deg270,
+  };
 
   // ── Session flow ──────────────────────────────────────────────────────────
 
@@ -659,18 +668,14 @@ class _SessionPageState extends State<SessionPage>
   Widget build(BuildContext context) {
     final controller = _controller;
     final meta = _frameMeta;
-    final cameraReady =
-        controller != null && controller.value.isInitialized;
+    final cameraReady = controller != null && controller.value.isInitialized;
     final isActive = _phase == _Phase.active;
     final hasExercise = _exerciseIndex < widget.goals.exercises.length;
 
     // Hold progress for T-pose calibration ring (0–1 over 1 second).
     final tposeHold = (_tPoseStableAt != null && !_tPoseCalibrating)
-        ? (DateTime.now()
-                .difference(_tPoseStableAt!)
-                .inMilliseconds /
-            1000.0)
-            .clamp(0.0, 1.0)
+        ? (DateTime.now().difference(_tPoseStableAt!).inMilliseconds / 1000.0)
+              .clamp(0.0, 1.0)
         : (_tPoseCalibrating ? 1.0 : 0.0);
 
     return Scaffold(
@@ -686,7 +691,8 @@ class _SessionPageState extends State<SessionPage>
                   fit: BoxFit.cover,
                   child: SizedBox(
                     width: controller.value.previewSize?.height ?? 1080,
-                    height: controller.value.previewSize?.width ??
+                    height:
+                        controller.value.previewSize?.width ??
                         (1080 * controller.value.aspectRatio),
                     child: Stack(
                       fit: StackFit.expand,
@@ -731,8 +737,11 @@ class _SessionPageState extends State<SessionPage>
                   padding: EdgeInsets.zero,
                   borderRadius: 100,
                   child: IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: Colors.white, size: 20),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -860,8 +869,9 @@ class _SessionPageState extends State<SessionPage>
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedSlide(
-              offset:
-                  _phase == _Phase.rest ? Offset.zero : const Offset(0, 1.5),
+              offset: _phase == _Phase.rest
+                  ? Offset.zero
+                  : const Offset(0, 1.5),
               duration: const Duration(milliseconds: 360),
               curve: Curves.easeInOut,
               child: SafeArea(
@@ -921,8 +931,8 @@ class _TposeCalibrationOverlay extends StatelessWidget {
     final Color silhouetteColor = calibrated
         ? const Color(0xFF4CAF50)
         : isTposeDetected
-            ? const Color(0xFF4CAF50)
-            : Colors.white54;
+        ? const Color(0xFF4CAF50)
+        : Colors.white54;
 
     return Container(
       color: Colors.black54,
@@ -933,9 +943,9 @@ class _TposeCalibrationOverlay extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: -45, // Nudge further down
+            bottom: -60, // Nudge further down
             child: Transform.scale(
-              scale: 1.75, // Marginally smaller
+              scale: 1.5, // Marginally smaller
               alignment: Alignment.bottomCenter,
               child: ColorFiltered(
                 colorFilter: ColorFilter.mode(
@@ -976,8 +986,8 @@ class _TposeCalibrationOverlay extends StatelessWidget {
                       calibrated
                           ? 'Calibrated! Grab your weights…'
                           : isTposeDetected
-                              ? 'Hold still…'
-                              : 'Strike a T-pose to calibrate',
+                          ? 'Hold still…'
+                          : 'Strike a T-pose to calibrate',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -1019,7 +1029,6 @@ class _TposeCalibrationOverlay extends StatelessWidget {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // Session preview sheet
 // ---------------------------------------------------------------------------
@@ -1049,9 +1058,10 @@ class _PreviewSheet extends StatelessWidget {
           Text(
             'Session Preview',
             style: TextStyle(
-                color: themeColors.textDark,
-                fontSize: 18,
-                fontWeight: FontWeight.w800),
+              color: themeColors.textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 14),
           ...goals.exercises.map(
@@ -1066,21 +1076,26 @@ class _PreviewSheet extends StatelessWidget {
                       color: themeColors.accent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.fitness_center_rounded,
-                        size: 16, color: themeColors.textDark),
+                    child: Icon(
+                      Icons.fitness_center_rounded,
+                      size: 16,
+                      color: themeColors.textDark,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(e.name,
-                        style: TextStyle(
-                            color: themeColors.textDark,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14)),
+                    child: Text(
+                      e.name,
+                      style: TextStyle(
+                        color: themeColors.textDark,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                   Text(
                     '${goals.sessionSets} × ${e.repsPerSet} reps',
-                    style: TextStyle(
-                        color: themeColors.textMid, fontSize: 13),
+                    style: TextStyle(color: themeColors.textMid, fontSize: 13),
                   ),
                 ],
               ),
@@ -1089,15 +1104,17 @@ class _PreviewSheet extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.timer_outlined,
-                  size: 13, color: themeColors.textLight),
+              Icon(
+                Icons.timer_outlined,
+                size: 13,
+                color: themeColors.textLight,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   '${_fmtSecs(goals.interSetRestSecs)} between sets  ·  '
                   '${_fmtSecs(goals.interExerciseRestSecs)} between exercises',
-                  style: TextStyle(
-                      color: themeColors.textLight, fontSize: 11),
+                  style: TextStyle(color: themeColors.textLight, fontSize: 11),
                 ),
               ),
             ],
@@ -1108,8 +1125,10 @@ class _PreviewSheet extends StatelessWidget {
             children: [
               TextButton(
                 onPressed: onCancel,
-                child: Text('Cancel',
-                    style: TextStyle(color: themeColors.textMid)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: themeColors.textMid),
+                ),
               ),
               // Countdown ring
               SizedBox(
@@ -1127,9 +1146,10 @@ class _PreviewSheet extends StatelessWidget {
                     Text(
                       '$countdown',
                       style: TextStyle(
-                          color: primary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800),
+                        color: primary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -1147,10 +1167,7 @@ class _PreviewSheet extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _GetReadyCard extends StatelessWidget {
-  const _GetReadyCard({
-    required this.exerciseName,
-    required this.countdown,
-  });
+  const _GetReadyCard({required this.exerciseName, required this.countdown});
 
   final String exerciseName;
   final int countdown;
@@ -1168,18 +1185,20 @@ class _GetReadyCard extends StatelessWidget {
           Text(
             'Get Ready for',
             style: TextStyle(
-                color: themeColors.textMid,
-                fontSize: 14,
-                fontWeight: FontWeight.w500),
+              color: themeColors.textMid,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             exerciseName,
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: primary,
-                fontSize: 26,
-                fontWeight: FontWeight.w800),
+              color: primary,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
@@ -1222,7 +1241,8 @@ class _ProgressIsland extends StatelessWidget {
   final String exerciseName;
   final int setIndex;
   final int totalSets;
-  final double progress;  // 0–1; form quality when isFormMode, set progress otherwise
+  final double
+  progress; // 0–1; form quality when isFormMode, set progress otherwise
   final bool isFormMode;
 
   @override
@@ -1406,8 +1426,9 @@ class _RepCountPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(100),
           boxShadow: [
             BoxShadow(
-              color: (fatigue ? const Color(0xFFFFA000) : primary)
-                  .withValues(alpha: 0.4),
+              color: (fatigue ? const Color(0xFFFFA000) : primary).withValues(
+                alpha: 0.4,
+              ),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -1439,9 +1460,7 @@ class _RepCountPill extends StatelessWidget {
             Text(
               ' / $goal',
               style: TextStyle(
-                color: fatigue
-                    ? const Color(0xFFFFA000)
-                    : Colors.white60,
+                color: fatigue ? const Color(0xFFFFA000) : Colors.white60,
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
               ),
@@ -1464,10 +1483,10 @@ class _NotificationBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor =
-        isGood ? const Color(0xCC2E7D32) : const Color(0xCCE8175A);
-    final glowColor =
-        isGood ? const Color(0xFF2E7D32) : const Color(0xFFE8175A);
+    final bgColor = isGood ? const Color(0xCC2E7D32) : const Color(0xCCE8175A);
+    final glowColor = isGood
+        ? const Color(0xFF2E7D32)
+        : const Color(0xFFE8175A);
     final icon = isGood
         ? Icons.check_circle_outline_rounded
         : Icons.warning_amber_rounded;
@@ -1532,25 +1551,30 @@ class _RestSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Rest',
-              style: TextStyle(
-                  color: themeColors.textDark,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            'Rest',
+            style: TextStyle(
+              color: themeColors.textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             _fmtSecs(secondsRemaining),
             style: TextStyle(
-                color: primary,
-                fontSize: 44,
-                fontWeight: FontWeight.w800,
-                height: 1),
+              color: primary,
+              fontSize: 44,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
           ),
           if (nextLabel != null) ...[
             const SizedBox(height: 8),
-            Text('Next: $nextLabel',
-                style: TextStyle(
-                    color: themeColors.textMid, fontSize: 13)),
+            Text(
+              'Next: $nextLabel',
+              style: TextStyle(color: themeColors.textMid, fontSize: 13),
+            ),
           ],
           const SizedBox(height: 18),
           SizedBox(
@@ -1623,20 +1647,22 @@ class _DoneOverlay extends StatelessWidget {
                       height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: hasFormData
-                            ? _qualityColor(overallQ)
-                            : primary,
+                        color: hasFormData ? _qualityColor(overallQ) : primary,
                       ),
-                      child: const Icon(Icons.check_rounded,
-                          color: Colors.white, size: 40),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
                       'Session Complete!',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800),
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     if (hasFormData) ...[
@@ -1654,9 +1680,10 @@ class _DoneOverlay extends StatelessWidget {
                         style: TextStyle(color: Colors.white38, fontSize: 12),
                       ),
                     ] else
-                      const Text('Great work!',
-                          style:
-                              TextStyle(color: Colors.white60, fontSize: 15)),
+                      const Text(
+                        'Great work!',
+                        style: TextStyle(color: Colors.white60, fontSize: 15),
+                      ),
                   ],
                 ),
               ),
@@ -1664,10 +1691,12 @@ class _DoneOverlay extends StatelessWidget {
               const SizedBox(height: 28),
 
               // ── Per-exercise cards ───────────────────────────────────────
-              ...summaries.map((s) => _ExerciseReportCard(
-                    summary: s,
-                    showFormData: bleWasConnected,
-                  )),
+              ...summaries.map(
+                (s) => _ExerciseReportCard(
+                  summary: s,
+                  showFormData: bleWasConnected,
+                ),
+              ),
 
               const SizedBox(height: 24),
 
@@ -1724,13 +1753,16 @@ class _ExerciseReportCard extends StatelessWidget {
                 ),
                 if (hasForm) ...[
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _qualityColor(q).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: _qualityColor(q).withValues(alpha: 0.6)),
+                        color: _qualityColor(q).withValues(alpha: 0.6),
+                      ),
                     ),
                     child: Text(
                       '${q.round()}%  ${_qualityLabel(q)}',
@@ -1744,8 +1776,7 @@ class _ExerciseReportCard extends StatelessWidget {
                 ] else
                   Text(
                     '${summary.repResults.length} reps',
-                    style:
-                        const TextStyle(color: Colors.white60, fontSize: 13),
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
                   ),
               ],
             ),
@@ -1757,13 +1788,15 @@ class _ExerciseReportCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(3),
                 child: SizedBox(
                   height: 5,
-                  child: Stack(children: [
-                    Container(color: Colors.white12),
-                    FractionallySizedBox(
-                      widthFactor: (q / 100).clamp(0.0, 1.0),
-                      child: Container(color: _qualityColor(q)),
-                    ),
-                  ]),
+                  child: Stack(
+                    children: [
+                      Container(color: Colors.white12),
+                      FractionallySizedBox(
+                        widthFactor: (q / 100).clamp(0.0, 1.0),
+                        child: Container(color: _qualityColor(q)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1783,7 +1816,8 @@ class _ExerciseReportCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: _qualityColor(repQ).withValues(alpha: 0.2),
                       border: Border.all(
-                          color: _qualityColor(repQ).withValues(alpha: 0.7)),
+                        color: _qualityColor(repQ).withValues(alpha: 0.7),
+                      ),
                     ),
                     child: Center(
                       child: Text(
@@ -1810,21 +1844,19 @@ class _ExerciseReportCard extends StatelessWidget {
                   if (summary.hadSustainedTremor)
                     _IssueChip(label: 'Tremor', icon: Icons.vibration_rounded),
                   if (summary.hadSustainedSwing)
-                    _IssueChip(
-                        label: 'Fast swing',
-                        icon: Icons.speed_rounded),
+                    _IssueChip(label: 'Fast swing', icon: Icons.speed_rounded),
                   if (summary.hadYawIssue)
                     _IssueChip(
-                        label: 'Arm drift',
-                        icon: Icons.rotate_left_rounded),
+                      label: 'Arm drift',
+                      icon: Icons.rotate_left_rounded,
+                    ),
                   if (summary.hadRollIssue)
                     _IssueChip(
-                        label: 'Forearm rotation',
-                        icon: Icons.rotate_right_rounded),
+                      label: 'Forearm rotation',
+                      icon: Icons.rotate_right_rounded,
+                    ),
                   if (summary.hadPitchIssue)
-                    _IssueChip(
-                        label: 'Supination',
-                        icon: Icons.flip_rounded),
+                    _IssueChip(label: 'Supination', icon: Icons.flip_rounded),
                 ],
               ),
             ],
@@ -1840,16 +1872,21 @@ class _ExerciseReportCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('→ ',
-                          style: TextStyle(
-                              color: Colors.white38,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
+                      const Text(
+                        '→ ',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       Expanded(
                         child: Text(
                           r,
                           style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
