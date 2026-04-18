@@ -13,117 +13,105 @@ class BleDebugPage extends StatefulWidget {
 }
 
 class _BleDebugPageState extends State<BleDebugPage> {
-  final _ble = BleService();
-
   // ── Firmware filter params (sent via BLE when changed) ──────────────────────
-  double _tremorHpAlpha  = 0.600; // HP cutoff: higher α = only faster jitter passes
-  double _tremorEmaAlpha = 0.08;  // tremor EMA smoothing
-  double _cheatEps       = 0.05;  // g — muscle-force floor (div-by-zero guard)
-  double _cheatEmaAlpha  = 0.05;  // cheat-score smoothing
+  double _tremorHpAlpha  = 0.600;
+  double _tremorEmaAlpha = 0.08;
+  double _cheatEps       = 0.05;
+  double _cheatEmaAlpha  = 0.05;
 
   // ── Flutter-side classification thresholds (no BLE needed) ──────────────────
-  double _tremorNone     = 0.02;  // g — below = no tremor
-  double _tremorMild     = 0.06;  // g — below = mild
-  double _tremorMod      = 0.12;  // g — below = moderate; above = high
-  double _formBorderline = 13.9;  // ratio below = controlled form
-  double _formSwing      = 15.4;  // ratio above = cheating
+  double _tremorNone     = 0.02;
+  double _tremorMild     = 0.06;
+  double _tremorMod      = 0.12;
+  double _formBorderline = 13.9;
+  double _formSwing      = 15.4;
 
   bool _tuningOpen = false;
 
   @override
-  void dispose() {
-    _ble.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ble,
-      builder: (context, _) {
-        final state     = _ble.connectionState;
-        final connected = state == BleConnectionState.connected;
+    final ble = BleScope.of(context);
+    final state = ble.connectionState;
+    final connected = state == BleConnectionState.connected;
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            title: null,
-            iconTheme: const IconThemeData(color: AppColors.textDark),
-            actions: [
-              if (connected) ...[
-                IconButton(
-                  icon: Icon(
-                    Icons.tune_rounded,
-                    color: _tuningOpen ? AppColors.pinkBright : AppColors.beige,
-                  ),
-                  tooltip: 'Tune parameters',
-                  onPressed: () => setState(() => _tuningOpen = !_tuningOpen),
-                ),
-                TextButton(
-                  onPressed: _ble.disconnect,
-                  child: const Text('Disconnect',
-                      style: TextStyle(color: AppColors.pinkBright)),
-                ),
-              ],
-            ],
-          ),
-          body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                if (_ble.statusMessage != null)
-                  _StatusBanner(_ble.statusMessage!),
-
-                if (state == BleConnectionState.reconnecting) ...[
-                  _ReconnectPanel(ble: _ble),
-                ] else if (connected) ...[
-                  _ControlPanel(ble: _ble),
-                  if (_ble.isCalibrating) ...[
-                    const SizedBox(height: 12),
-                    const _CalibrationBanner(),
-                  ],
-                  if (_tuningOpen) ...[
-                    const SizedBox(height: 12),
-                    _TuningPanel(
-                      tremorHpAlpha:    _tremorHpAlpha,
-                      tremorEmaAlpha:   _tremorEmaAlpha,
-                      cheatEps:         _cheatEps,
-                      cheatEmaAlpha:    _cheatEmaAlpha,
-                      tremorNone:       _tremorNone,
-                      tremorMild:       _tremorMild,
-                      tremorMod:        _tremorMod,
-                      formBorderline:   _formBorderline,
-                      formSwing:        _formSwing,
-                      onTremorHp:  (v) { setState(() => _tremorHpAlpha  = v); _ble.setTremorHp(v);  },
-                      onTremorEma: (v) { setState(() => _tremorEmaAlpha = v); _ble.setTremorEma(v); },
-                      onCheatEps:  (v) { setState(() => _cheatEps       = v); _ble.setCheatEps(v);  },
-                      onCheatEma:  (v) { setState(() => _cheatEmaAlpha  = v); _ble.setCheatEma(v);  },
-                      onTremorNone:     (v) => setState(() => _tremorNone     = v),
-                      onTremorMild:     (v) => setState(() => _tremorMild     = v),
-                      onTremorMod:      (v) => setState(() => _tremorMod      = v),
-                      onFormBorderline: (v) => setState(() => _formBorderline = v),
-                      onFormSwing:      (v) => setState(() => _formSwing      = v),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  _DataPanel(
-                    data:           _ble.latestData,
-                    tremorNone:     _tremorNone,
-                    tremorMild:     _tremorMild,
-                    tremorMod:      _tremorMod,
-                    formBorderline: _formBorderline,
-                    formSwing:      _formSwing,
-                  ),
-                ] else ...[
-                  _ScanPanel(ble: _ble),
-                ],
-              ],
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        title: null,
+        iconTheme: const IconThemeData(color: AppColors.textDark),
+        actions: [
+          if (connected) ...[
+            IconButton(
+              icon: Icon(
+                Icons.tune_rounded,
+                color: _tuningOpen ? AppColors.pinkBright : AppColors.beige,
+              ),
+              tooltip: 'Tune parameters',
+              onPressed: () => setState(() => _tuningOpen = !_tuningOpen),
             ),
-          ),
-        );
-      },
+            TextButton(
+              onPressed: ble.disconnect,
+              child: const Text('Disconnect',
+                  style: TextStyle(color: AppColors.pinkBright)),
+            ),
+          ],
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          children: [
+            if (ble.statusMessage != null)
+              _StatusBanner(ble.statusMessage!),
+
+            if (state == BleConnectionState.reconnecting) ...[
+              _ReconnectPanel(ble: ble),
+            ] else if (connected) ...[
+              _ControlPanel(ble: ble),
+              if (ble.isCalibrating) ...[
+                const SizedBox(height: 12),
+                const _CalibrationBanner(),
+              ],
+              if (_tuningOpen) ...[
+                const SizedBox(height: 12),
+                _TuningPanel(
+                  tremorHpAlpha:    _tremorHpAlpha,
+                  tremorEmaAlpha:   _tremorEmaAlpha,
+                  cheatEps:         _cheatEps,
+                  cheatEmaAlpha:    _cheatEmaAlpha,
+                  tremorNone:       _tremorNone,
+                  tremorMild:       _tremorMild,
+                  tremorMod:        _tremorMod,
+                  formBorderline:   _formBorderline,
+                  formSwing:        _formSwing,
+                  onTremorHp:  (v) { setState(() => _tremorHpAlpha  = v); ble.setTremorHp(v);  },
+                  onTremorEma: (v) { setState(() => _tremorEmaAlpha = v); ble.setTremorEma(v); },
+                  onCheatEps:  (v) { setState(() => _cheatEps       = v); ble.setCheatEps(v);  },
+                  onCheatEma:  (v) { setState(() => _cheatEmaAlpha  = v); ble.setCheatEma(v);  },
+                  onTremorNone:     (v) => setState(() => _tremorNone     = v),
+                  onTremorMild:     (v) => setState(() => _tremorMild     = v),
+                  onTremorMod:      (v) => setState(() => _tremorMod      = v),
+                  onFormBorderline: (v) => setState(() => _formBorderline = v),
+                  onFormSwing:      (v) => setState(() => _formSwing      = v),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _DataPanel(
+                data:           ble.latestData,
+                tremorNone:     _tremorNone,
+                tremorMild:     _tremorMild,
+                tremorMod:      _tremorMod,
+                formBorderline: _formBorderline,
+                formSwing:      _formSwing,
+              ),
+            ] else ...[
+              _ScanPanel(ble: ble),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
