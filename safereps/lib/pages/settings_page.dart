@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart' show cameras;
+import '../models/coach_settings.dart';
 import '../models/goals_model.dart';
 import '../pages/ble_debug_page.dart';
 import '../pose_camera_page.dart';
@@ -16,6 +17,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeColors = AppTheme.colors(context);
     final themeService = ThemeScope.of(context);
+    final coach = CoachSettingsScope.of(context);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -101,6 +103,97 @@ class SettingsPage extends StatelessWidget {
                     ),
                   );
                 },
+              ),
+            ),
+            const SizedBox(height: 16),
+            _SectionLabel('Coach Voice', color: themeColors.textLight),
+            const SizedBox(height: 8),
+            GlassCard(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              borderRadius: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Captions toggle
+                  Row(
+                    children: [
+                      Container(
+                        width: 34, height: 34,
+                        decoration: BoxDecoration(
+                          color: themeColors.accent.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.closed_caption_rounded,
+                            color: themeColors.textDark, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('On-Screen Captions',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: themeColors.textDark)),
+                            Text('Show coach cues as text during workout',
+                                style: TextStyle(
+                                    color: themeColors.textMid, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: coach.captions,
+                        onChanged: coach.setCaptions,
+                        activeColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: Color(0x18000000)),
+                  const SizedBox(height: 14),
+                  // Sliders
+                  _CoachSlider(
+                    icon: Icons.volume_up_rounded,
+                    label: 'Voice Volume',
+                    value: coach.volume,
+                    onChanged: coach.setVolume,
+                    leftLabel: 'Quiet',
+                    rightLabel: 'Loud',
+                  ),
+                  _CoachSlider(
+                    icon: Icons.notifications_rounded,
+                    label: 'Feedback Frequency',
+                    value: coach.frequency,
+                    onChanged: coach.setFrequency,
+                    leftLabel: 'Rare',
+                    rightLabel: 'Constant',
+                  ),
+                  _CoachSlider(
+                    icon: Icons.sentiment_satisfied_alt_rounded,
+                    label: 'Positive Reinforcement',
+                    value: coach.positive,
+                    onChanged: coach.setPositive,
+                    leftLabel: 'Less',
+                    rightLabel: 'More',
+                  ),
+                  _CoachSlider(
+                    icon: Icons.build_circle_outlined,
+                    label: 'Constructive Criticism',
+                    value: coach.criticism,
+                    onChanged: coach.setCriticism,
+                    leftLabel: 'Lenient',
+                    rightLabel: 'Strict',
+                  ),
+                  _CoachSlider(
+                    icon: Icons.track_changes_rounded,
+                    label: 'Form Strictness',
+                    value: coach.strictness,
+                    onChanged: coach.setStrictness,
+                    leftLabel: 'Relaxed',
+                    rightLabel: 'Strict',
+                    isLast: true,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -307,3 +400,83 @@ class _AppIconBadge extends StatelessWidget {
     );
   }
 }
+
+// ── Coach slider widget ───────────────────────────────────────────────────────
+
+class _CoachSlider extends StatelessWidget {
+  const _CoachSlider({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    required this.leftLabel,
+    required this.rightLabel,
+    this.isLast = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+  final String leftLabel;
+  final String rightLabel;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: primary, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: themeColors.textDark,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            activeTrackColor: primary,
+            inactiveTrackColor: primary.withValues(alpha: 0.18),
+            thumbColor: primary,
+            overlayColor: primary.withValues(alpha: 0.12),
+          ),
+          child: Slider(value: value, onChanged: onChanged),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(leftLabel,
+                  style: TextStyle(
+                      color: themeColors.textLight, fontSize: 10)),
+              Text(rightLabel,
+                  style: TextStyle(
+                      color: themeColors.textLight, fontSize: 10)),
+            ],
+          ),
+        ),
+        if (!isLast) ...[
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0x10000000)),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+

@@ -14,12 +14,14 @@ import '../analysis/joint_angles.dart';
 import '../analysis/rep_counter.dart';
 import '../analysis/rep_form_tracker.dart';
 import '../main.dart' show cameras;
+import '../models/coach_settings.dart';
 import '../models/goals_model.dart';
 import '../pose/mlkit_pose_estimator.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/skeleton_smoother.dart';
 import '../pose_painter.dart';
 import '../services/ble_service.dart';
+import '../services/voice_coach_service.dart';
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 
@@ -110,6 +112,12 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   int _restRemaining = 0;
 
   Timer? _timer;
+
+  // ── Voice coach ───────────────────────────────────────────────────────────
+  late final VoiceCoachService _coach;
+  // Cooldown to avoid firing cues on every BLE tick
+  DateTime? _lastCueFiredAt;
+  static const _cueCooldown = Duration(seconds: 8);
 
   // Form / notification state
   bool _isPoseValid = true;
@@ -245,6 +253,18 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safe to use context here for InheritedWidget lookup.
+    if (!_coachInitialized) {
+      _coach = VoiceCoachService(CoachSettingsScope.of(context));
+      _coachInitialized = true;
+    }
+  }
+
+  bool _coachInitialized = false;
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
@@ -253,6 +273,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _estimator?.close();
     widget.ble?.removeListener(_onBleData);
     widget.ble?.stopImuStream();
+    if (_coachInitialized) _coach.dispose();
     super.dispose();
   }
 
@@ -442,6 +463,15 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               : 9999;
           if (repDuration < 800) {
             _showNotification('Slow down — control the movement');
+            // Tempo correction – pick exercise-specific cue
+            if (_currentGoal.name.contains('Curl')) {
+              _fireCoachCue(CueCategory.bicepTempo, correction: true);
+            } else {
+              _fireCoachCue(CueCategory.lateralTempo, correction: true);
+            }
+          } else {
+            // Good rep – play positive cue
+            _maybePlayPositive();
           }
           _lastRepTime = now;
         }
@@ -493,6 +523,12 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     if (_formTracker.tremorSustained && !_tremorAlertShown) {
       _tremorAlertShown = true;
       _showNotification('Tremor detected — control your movement');
+      // Swing / stability correction
+      if (_currentGoal.name.contains('Curl')) {
+        _fireCoachCue(CueCategory.bicepBackBody, correction: true);
+      } else {
+        _fireCoachCue(CueCategory.lateralBodySwing, correction: true);
+      }
       _checkFatigue();
     }
 
@@ -500,9 +536,49 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     if (_formTracker.swingSustained && !_swingAlertShown) {
       _swingAlertShown = true;
       _showNotification('Reduce your swing speed');
+      if (_currentGoal.name.contains('Curl')) {
+        _fireCoachCue(CueCategory.bicepBackBody, correction: true);
+      } else {
+        _fireCoachCue(CueCategory.lateralBodySwing, correction: true);
+      }
     }
 
     if (mounted) setState(() {});
+  }
+
+  // ── Voice coach helpers ───────────────────────────────────────────────────
+
+  /// Play a correction cue, respecting a cooldown to avoid spamming.
+  void _fireCoachCue(CueCategory cat, {bool correction = false}) {
+    final now = DateTime.now();
+    if (_lastCueFiredAt != null &&
+        now.difference(_lastCueFiredAt!) < _cueCooldown) return;
+    _lastCueFiredAt = now;
+    if (correction) {
+      _coach.playCorrection(cat);
+    } else {
+      _coach.play(cat);
+    }
+  }
+
+  /// Decide which positive cue to play based on the current exercise.
+  void _maybePlayPositive() {
+    final name = _currentGoal.name;
+    if (name.contains('Curl')) {
+      _fireCoachCue(CueCategory.bicepPositive);
+    } else if (name.contains('Lateral') || name.contains('Raise')) {
+      // Alternate between perfect-rep praise and generic positive
+      final reps = _repResult?.totalReps ?? 0;
+      final goal = _effectiveRepsGoal;
+      // Last 3 reps → struggle motivation
+      if (goal - reps <= 3) {
+        _fireCoachCue(CueCategory.lateralPositiveStruggle);
+      } else {
+        _fireCoachCue(CueCategory.lateralPositivePerfect);
+      }
+    } else {
+      _fireCoachCue(CueCategory.genericPositive);
+    }
   }
 
   void _checkFatigue() {
@@ -582,6 +658,8 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _getReadyCountdown = 3;
     _timer?.cancel();
     setState(() => _phase = _Phase.getReady);
+    // Fire a session-start cue
+    _coach.playMandatory(CueCategory.start);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -630,11 +708,17 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
       _exerciseIndex++;
       if (_exerciseIndex >= widget.goals.exercises.length) {
         widget.ble?.stopImuStream();
+        // Session complete
+        _coach.playMandatory(CueCategory.finishCongrats);
         setState(() => _phase = _Phase.done);
         return;
       }
+      // Exercise complete (not final)
+      _coach.playMandatory(CueCategory.finishCongrats);
       _startRest(widget.goals.interExerciseRestSecs);
     } else {
+      // Set complete
+      _coach.playMandatory(CueCategory.finishCongrats);
       _startRest(widget.goals.interSetRestSecs);
     }
   }
@@ -822,7 +906,59 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             ),
           ),
 
-          // ── Preview overlay ─────────────────────────────────────────────
+          // ── Caption overlay ─────────────────────────────────────────────
+          if (_coachInitialized)
+            ListenableBuilder(
+              listenable: _coach,
+              builder: (context, _) {
+                final settings = CoachSettingsScope.of(context);
+                final caption = _coach.lastCaption;
+                final show = settings.captions && caption != null && isActive;
+                return Positioned(
+                  bottom: 90,
+                  left: 24,
+                  right: 24,
+                  child: AnimatedOpacity(
+                    opacity: show ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 400),
+                    child: AnimatedSlide(
+                      offset: show ? Offset.zero : const Offset(0, 0.4),
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            caption ?? '',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 6,
+                                  color: Colors.black54,
+                                  offset: Offset(0, 1),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedSlide(

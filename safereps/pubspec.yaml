@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.3.0
   flutter_blue_plus: ^1.35.0
   video_player: ^2.9.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,26 @@ flutter:
     - ../assets/Demonstration videos and images/lateral raises.mp4
     - ../assets/Demonstration videos and images/Bicep Curls no background.png
     - ../assets/Demonstration videos and images/bicep curls.mp4
+    # ── Voice Coach Audio (registered at directory level) ──────────────────
+    - ../assets/Generic Audio/Start/
+    - ../assets/Generic Audio/Finish congratulations/
+    - ../assets/Generic Audio/Generic form correction/
+    - ../assets/Generic Audio/Generic Positive reinforcement/
+    - ../assets/Audio Bicep Curls/Form correction (Back and body movement)/
+    - ../assets/Audio Bicep Curls/Form correction (Elbows)/
+    - ../assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/
+    - ../assets/Audio Bicep Curls/Form correction (Range of Motion Top)/
+    - ../assets/Audio Bicep Curls/Form correction (Shoulder and Wrists)/
+    - ../assets/Audio Bicep Curls/Last reps Motivation/
+    - ../assets/Audio Bicep Curls/Positive stuff/
+    - ../assets/Audio Bicep Curls/Tempo/
+    - ../assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/
+    - ../assets/Lateral raises Audio/Form correction (Elbows and Wrists)/
+    - ../assets/Lateral raises Audio/Form correction (Range of Motion)/
+    - ../assets/Lateral raises Audio/Form correction (Shoulder and Traps)/
+    - ../assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/
+    - ../assets/Lateral raises Audio/Positive reinforcement (Struggle)/
+    - ../assets/Lateral raises Audio/Tempo/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import 'models/coach_settings.dart';
 import 'models/goals_model.dart';
 import 'services/ble_service.dart';
 import 'services/theme_service.dart';
@@ -23,19 +24,23 @@ Future<void> main() async {
     cameras = const [];
   }
 
-  // Initialize BLE and Goals services
+  // Initialize BLE, Goals, and Coach Settings
   final bleService = BleService();
   final goalsModel = GoalsModel();
   await goalsModel.load();
+  final coachSettings = await CoachSettings.load();
 
   runApp(
     ThemeScope(
       service: themeService,
-      child: GoalsScope(
-        model: goalsModel,
-        child: BleScope(
-          ble: bleService,
-          child: const SafeRepsApp(),
+      child: CoachSettingsScope(
+        settings: coachSettings,
+        child: GoalsScope(
+          model: goalsModel,
+          child: BleScope(
+            ble: bleService,
+            child: const SafeRepsApp(),
+          ),
         ),
       ),
     ),
