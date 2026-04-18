@@ -46,7 +46,7 @@ float smoothYaw   = 0, smoothPitch = 0, smoothRoll = 0;
 // 1st-order HP on linear accel.  α = RC/(RC+dt).
 // Higher α → higher cutoff → only very fast jitter passes.
 // Tunable at runtime via TREMOR_HP <alpha>.
-float kTremorHpAlpha = 0.761f;  // fc≈5 Hz default
+float kTremorHpAlpha = 0.30f;   // fc≈37 Hz — low alpha, strict high-pass
 float kTremorAlpha   = 0.02f;   // EMA smoothing, τ≈500 ms
 float prevLax = 0, prevLay = 0, prevLaz = 0;
 float hpx = 0, hpy = 0, hpz = 0;
