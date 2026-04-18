@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IMU Visualizer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; color: #fff; font-family: sans-serif; }
+        #overlay { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; width: 300px; }
+        button, input { margin-top: 8px; padding: 10px 12px; font-size: 14px; background: #444; color: white; border: 1px solid #666; border-radius: 4px; cursor: pointer; width: 100%; box-sizing: border-box; }
+        button:hover { background: #555; }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; }
+        #log { margin-top: 15px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #aaa; background: #111; padding: 5px; border-radius: 4px;}
+        .input-group { display: flex; gap: 5px; margin-top: 8px; align-items: center; }
+        .input-group input { margin-top: 0; width: 70%; }
+        .input-group button { margin-top: 0; width: 30%; }
+        #dataDisplay { margin-top: 15px; font-size: 14px; font-weight: bold; background: #333; padding: 10px; border-radius: 4px; text-align: center; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="overlay">
+        <h2 style="margin-top: 0;">IMU Control Panel</h2>
+        <button id="connectBtn">Connect to MCU (Web Serial)</button>
+        <button id="streamBtn" disabled>Start Data Stream</button>
+        <div class="input-group">
+            <button id="zeroBtn" disabled>Zero Orientation</button>
+            <button id="calibrateBtn" disabled>Calibrate</button>
+            <button id="pingBtn" disabled>Ping MCU</button>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 12px; color: #ccc;">Damping Alpha (0.01 - 1.0)</div>
+        <div class="input-group">
+            <input type="number" id="alphaInput" value="0.5" step="0.05" min="0.01" max="1.0">
+            <button id="updateAlphaBtn" disabled>Update</button>
+        </div>
+        
+        <div id="dataDisplay">Yaw: 0.00°<br>Pitch: 0.00°<br>Roll: 0.00°</div>
+        <div id="log"><i>Logs will appear here...</i></div>
+    </div>
+
+    <script>
+        // --- 3D Scene Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add a box to represent the MCU/Sensor (a flat brick mimicking a PCB)
+        const geometry = new THREE.BoxGeometry(4, 0.5, 2);
+        
+        // Colors for faces (Right, Left, Top, Bottom, Front, Back)
+        const materials = [
+            new THREE.MeshBasicMaterial({ color: 0x44cc44 }), // Right  (Green)
+            new THREE.MeshBasicMaterial({ color: 0xcc4444 }), // Left   (Red)
+            new THREE.MeshBasicMaterial({ color: 0x4444cc }), // Top    (Blue)
+            new THREE.MeshBasicMaterial({ color: 0xcccc44 }), // Bottom (Yellow)
+            new THREE.MeshBasicMaterial({ color: 0xcc44cc }), // Front  (Purple)
+            new THREE.MeshBasicMaterial({ color: 0x44cccc }), // Back   (Cyan)
+        ];
+        
+        const cube = new THREE.Mesh(geometry, materials);
+        scene.add(cube);
+
+        // Add Edges to cube for better visibility
+        const edges = new THREE.EdgesGeometry(geometry);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
+        cube.add(line);
+
+        // Add grid Helper
+        const gridHelper = new THREE.GridHelper(10, 10, 0x888888, 0x444444);
+        scene.add(gridHelper);
+
+        camera.position.set(5, 4, 5);
+        camera.lookAt(0, 0, 0);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Serial API Setup ---
+        let port;
+        let reader;
+        let writer;
+        let streaming = false;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const streamBtn = document.getElementById('streamBtn');
+        const zeroBtn = document.getElementById('zeroBtn');
+        const calibrateBtn = document.getElementById('calibrateBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        const updateAlphaBtn = document.getElementById('updateAlphaBtn');
+        const alphaInput = document.getElementById('alphaInput');
+        const logEl = document.getElementById('log');
+        const dataDisplay = document.getElementById('dataDisplay');
+
+        function log(msg) {
+            logEl.innerHTML += `<div>${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            if (!navigator.serial) {
+                alert("Web Serial API not supported in this browser. Use Chrome/Edge/Opera.");
+                return;
+            }
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                log("<strong style='color: #4f4;'>Connected to Serial Port</strong>");
+                
+                // Enable buttons
+                streamBtn.disabled = false;
+                zeroBtn.disabled = false;
+                calibrateBtn.disabled = false;
+                pingBtn.disabled = false;
+                updateAlphaBtn.disabled = false;
+                connectBtn.disabled = true;
+
+                // Setup Writer
+                writer = port.writable.getWriter();
+                
+                // Start Reading loop
+                readLoop();
+            } catch (err) {
+                log(`<span style='color: red;'>Error: ${err.message}</span>`);
+            }
+        });
+
+        async function sendCommand(cmd) {
+            if (writer) {
+                const encoder = new TextEncoder();
+                await writer.write(encoder.encode(cmd + '\n'));
+                log(`<span style='color: #88c;'>&gt; ${cmd}</span>`);
+            }
+        }
+
+        streamBtn.addEventListener('click', () => {
+            streaming = !streaming;
+            streamBtn.innerText = streaming ? "Stop Data Stream" : "Start Data Stream";
+            streamBtn.style.background = streaming ? "#cc4444" : "#44cc44";
+            sendCommand(streaming ? "DATA_ON" : "DATA_OFF");
+        });
+
+        zeroBtn.addEventListener('click', () => sendCommand("ZERO"));
+        calibrateBtn.addEventListener('click', () => sendCommand("CALIBRATE"));
+        pingBtn.addEventListener('click', () => sendCommand("PING"));
+        
+        updateAlphaBtn.addEventListener('click', () => {
+            const val = alphaInput.value;
+            sendCommand(`DAMPING ${val}`);
+        });
+
+        async function readLoop() {
+            const decoder = new TextDecoderStream();
+            port.readable.pipeTo(decoder.writable);
+            reader = decoder.readable.getReader();
+
+            let buffer = "";
+
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        reader.releaseLock();
+                        break;
+                    }
+                    if (value) {
+                        buffer += value;
+                        let lines = buffer.split('\n');
+                        buffer = lines.pop(); // keep remainder
+
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            try {
+                                const data = JSON.parse(line.trim());
+                                if (data.status) {
+                                    log(`<span style='color: #ffaa00;'>MCU: ${data.status}</span>`);
+                                }
+                                if (data.error) {
+                                    log(`<span style='color: #ff0000;'>ERR: ${data.error}</span>`);
+                                }
+                                if (data.yaw !== undefined) {
+                                    // Three.js uses radians. Convert incoming degrees to radians.
+                                    const y = data.yaw * (Math.PI / 180);
+                                    const p = data.pitch * (Math.PI / 180);
+                                    const r = data.roll * (Math.PI / 180);
+                                    
+                                    // Apply rotation (Three.js Euler uses XYZ, ZYX, etc. YXZ is good for standard yaw/pitch/roll)
+                                    // Inversion of axes might be required depending on actual physical orientation of the sensor.
+                                    cube.rotation.set(-p, y, -r, 'YXZ');
+                                    
+                                    // Update display text
+                                    dataDisplay.innerHTML = `Yaw: ${data.yaw.toFixed(2)}°<br>Pitch: ${data.pitch.toFixed(2)}°<br>Roll: ${data.roll.toFixed(2)}°`;
+                                }
+                            } catch (e) {
+                                // If it fails to parse as JSON, just log as raw text (useful for debugging reboots)
+                                if (line.indexOf('{') === -1) {
+                                    log(`<span style='color: #888;'>Raw: ${line}</span>`);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                log(`<span style='color: red;'>Read loop closed: ${err.message}</span>`);
+                connectBtn.disabled = false;
+                streamBtn.disabled = true;
+                zeroBtn.disabled = true;
+                calibrateBtn.disabled = true;
+                updateAlphaBtn.disabled = true;
+                streamBtn.innerText = "Start Data Stream";
+                streamBtn.style.background = "#444";
+            }
+        }
+    </script>
+</body>
+</html>
