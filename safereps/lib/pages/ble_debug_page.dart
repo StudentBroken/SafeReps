@@ -13,13 +13,13 @@ class BleDebugPage extends StatefulWidget {
 }
 
 class _BleDebugPageState extends State<BleDebugPage> {
-  // ── Firmware filter params (sent via BLE when changed) ──────────────────────
+  // ── Firmware filter params ──────────────────────
   double _tremorHpAlpha  = 0.600;
   double _tremorEmaAlpha = 0.08;
   double _cheatEps       = 0.05;
   double _cheatEmaAlpha  = 0.05;
 
-  // ── Flutter-side classification thresholds (no BLE needed) ──────────────────
+  // ── Flutter-side classification thresholds ──────────────────
   double _tremorNone     = 0.02;
   double _tremorMild     = 0.06;
   double _tremorMod      = 0.12;
@@ -31,30 +31,28 @@ class _BleDebugPageState extends State<BleDebugPage> {
   @override
   Widget build(BuildContext context) {
     final ble = BleScope.of(context);
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
     final state = ble.connectionState;
     final connected = state == BleConnectionState.connected;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: null,
-        iconTheme: const IconThemeData(color: AppColors.textDark),
+        iconTheme: IconThemeData(color: themeColors.textDark),
         actions: [
           if (connected) ...[
             IconButton(
               icon: Icon(
                 Icons.tune_rounded,
-                color: _tuningOpen ? AppColors.pinkBright : AppColors.beige,
+                color: _tuningOpen ? themeColors.accent : themeColors.unselected,
               ),
               tooltip: 'Tune parameters',
               onPressed: () => setState(() => _tuningOpen = !_tuningOpen),
             ),
             TextButton(
               onPressed: ble.disconnect,
-              child: const Text('Disconnect',
-                  style: TextStyle(color: AppColors.pinkBright)),
+              child: Text('Disconnect',
+                  style: TextStyle(color: primary)),
             ),
           ],
         ],
@@ -116,28 +114,25 @@ class _BleDebugPageState extends State<BleDebugPage> {
   }
 }
 
-// ─── Status banner ────────────────────────────────────────────────────────────
-
 class _StatusBanner extends StatelessWidget {
   const _StatusBanner(this.message);
   final String message;
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
         borderRadius: 10,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(message,
-            style: const TextStyle(color: AppColors.textMid, fontSize: 12),
+            style: TextStyle(color: colors.textMid, fontSize: 12),
             textAlign: TextAlign.center),
       ),
     );
   }
 }
-
-// ─── Reconnect panel ──────────────────────────────────────────────────────────
 
 class _ReconnectPanel extends StatelessWidget {
   const _ReconnectPanel({required this.ble});
@@ -145,32 +140,33 @@ class _ReconnectPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return GlassCard(
       borderRadius: 16,
       child: Column(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 36, height: 36,
             child: CircularProgressIndicator(
-                color: AppColors.pinkBright, strokeWidth: 3),
+                color: colors.accent, strokeWidth: 3),
           ),
           const SizedBox(height: 14),
           Text(ble.savedDeviceName ?? 'Saved device',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
+                  color: colors.textDark,
                   fontSize: 16)),
           const SizedBox(height: 4),
           Text('Attempt ${ble.reconnectAttempt}',
-              style: const TextStyle(color: AppColors.textMid, fontSize: 13)),
+              style: TextStyle(color: colors.textMid, fontSize: 13)),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textMid,
-                    side: const BorderSide(color: AppColors.beige),
+                    foregroundColor: colors.textMid,
+                    side: BorderSide(color: colors.unselected),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
@@ -199,8 +195,6 @@ class _ReconnectPanel extends StatelessWidget {
   }
 }
 
-// ─── Scan panel ───────────────────────────────────────────────────────────────
-
 class _ScanPanel extends StatelessWidget {
   const _ScanPanel({required this.ble});
   final BleService ble;
@@ -208,6 +202,7 @@ class _ScanPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isScanning = ble.connectionState == BleConnectionState.scanning;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -218,7 +213,7 @@ class _ScanPanel extends StatelessWidget {
         ],
         FilledButton.icon(
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.pinkBright,
+            backgroundColor: primary,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
@@ -267,6 +262,9 @@ class _SavedDeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -275,26 +273,26 @@ class _SavedDeviceCard extends StatelessWidget {
           Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: AppColors.pinkBright.withAlpha(30),
+              color: primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.bluetooth_connected_rounded,
-                color: AppColors.pinkBright, size: 18),
+            child: Icon(Icons.bluetooth_connected_rounded,
+                color: primary, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Saved Device',
+                Text('Saved Device',
                     style: TextStyle(
-                        color: AppColors.textLight, fontSize: 11,
+                        color: colors.textLight, fontSize: 11,
                         fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                 const SizedBox(height: 2),
                 Text(ble.savedDeviceName ?? ble.savedDeviceId ?? '',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark, fontSize: 14)),
+                        color: colors.textDark, fontSize: 14)),
               ],
             ),
           ),
@@ -311,7 +309,7 @@ class _SavedDeviceCard extends StatelessWidget {
             onPressed: () => ble.connect(
                 BluetoothDevice(remoteId: DeviceIdentifier(ble.savedDeviceId!))),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.pinkBright,
+              backgroundColor: primary,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -339,6 +337,8 @@ class _DeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
     final name = result.device.platformName.isNotEmpty
         ? result.device.platformName
         : 'Unknown (${result.device.remoteId})';
@@ -347,12 +347,12 @@ class _DeviceTile extends StatelessWidget {
       leading: Container(
         width: 36, height: 36,
         decoration: BoxDecoration(
-          color: isSaved ? AppColors.pinkBright.withAlpha(30) : AppColors.pink,
+          color: isSaved ? primary.withValues(alpha: 0.15) : colors.unselected.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           isSaved ? Icons.bluetooth_connected_rounded : Icons.bluetooth_rounded,
-          color: isSaved ? AppColors.pinkBright : AppColors.textDark,
+          color: isSaved ? primary : colors.textDark,
           size: 18,
         ),
       ),
@@ -360,33 +360,31 @@ class _DeviceTile extends StatelessWidget {
         children: [
           Expanded(
             child: Text(name,
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textDark, fontSize: 14)),
+                    color: colors.textDark, fontSize: 14)),
           ),
           if (isSaved)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.pinkBright.withAlpha(25),
+                color: primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text('Saved',
+              child: Text('Saved',
                   style: TextStyle(
-                      color: AppColors.pinkBright,
+                      color: primary,
                       fontSize: 10, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
       subtitle: Text('RSSI: ${result.rssi} dBm',
-          style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.beige),
+          style: TextStyle(color: colors.textMid, fontSize: 11)),
+      trailing: Icon(Icons.chevron_right_rounded, color: colors.unselected),
       onTap: onTap,
     );
   }
 }
-
-// ─── Control panel ────────────────────────────────────────────────────────────
 
 class _ControlPanel extends StatelessWidget {
   const _ControlPanel({required this.ble});
@@ -394,6 +392,8 @@ class _ControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
     final name = ble.connectedDevice?.platformName.isNotEmpty == true
         ? ble.connectedDevice!.platformName
         : ble.savedDeviceName ?? 'Connected';
@@ -413,9 +413,9 @@ class _ControlPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(name,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark, fontSize: 15)),
+                        color: colors.textDark, fontSize: 15)),
               ),
               TextButton(
                 onPressed: ble.forgetDevice,
@@ -440,7 +440,7 @@ class _ControlPanel extends StatelessWidget {
                       : Icons.play_circle_outlined,
                   color: ble.isStreaming
                       ? const Color(0xFFFF3B30)
-                      : AppColors.pinkBright,
+                      : primary,
                   onTap: ble.toggleStream,
                 ),
               ),
@@ -449,7 +449,7 @@ class _ControlPanel extends StatelessWidget {
                 child: _CtrlButton(
                   label: 'ZERO',
                   icon: Icons.my_location_rounded,
-                  color: AppColors.textMid,
+                  color: colors.textMid,
                   onTap: ble.zero,
                 ),
               ),
@@ -458,7 +458,7 @@ class _ControlPanel extends StatelessWidget {
                 child: _CtrlButton(
                   label: 'CALIBRATE',
                   icon: Icons.tune_rounded,
-                  color: AppColors.textMid,
+                  color: colors.textMid,
                   onTap: ble.isCalibrating ? null : ble.calibrate,
                   loading: ble.isCalibrating,
                 ),
@@ -496,15 +496,15 @@ class _CtrlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = onTap == null ? color.withAlpha(90) : color;
+    final c = onTap == null ? color.withValues(alpha: 0.4) : color;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: c.withAlpha(22),
+          color: c.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: c.withAlpha(60)),
+          border: Border.all(color: c.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -525,35 +525,34 @@ class _CtrlButton extends StatelessWidget {
   }
 }
 
-// ─── Calibration banner ───────────────────────────────────────────────────────
-
 class _CalibrationBanner extends StatelessWidget {
   const _CalibrationBanner();
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 20, height: 20,
             child: CircularProgressIndicator(
-                color: AppColors.pinkBright, strokeWidth: 2.5),
+                color: colors.accent, strokeWidth: 2.5),
           ),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Calibrating…',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark, fontSize: 14)),
-                SizedBox(height: 2),
+                        color: colors.textDark, fontSize: 14)),
+                const SizedBox(height: 2),
                 Text('Keep the device completely still',
-                    style: TextStyle(color: AppColors.textMid, fontSize: 12)),
+                    style: TextStyle(color: colors.textMid, fontSize: 12)),
               ],
             ),
           ),
@@ -562,8 +561,6 @@ class _CalibrationBanner extends StatelessWidget {
     );
   }
 }
-
-// ─── Tuning panel ─────────────────────────────────────────────────────────────
 
 class _TuningPanel extends StatelessWidget {
   const _TuningPanel({
@@ -698,9 +695,10 @@ class _TuneSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return Text(text.toUpperCase(),
-        style: const TextStyle(
-            color: AppColors.textLight, fontSize: 9,
+        style: TextStyle(
+            color: colors.textLight, fontSize: 9,
             fontWeight: FontWeight.w700, letterSpacing: 1.1));
   }
 }
@@ -725,6 +723,7 @@ class _ParamSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(
@@ -734,22 +733,22 @@ class _ParamSlider extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textDark,
+                    style: TextStyle(
+                        color: colors.textDark,
                         fontSize: 12, fontWeight: FontWeight.w600)),
               ),
               Text(format(value),
-                  style: const TextStyle(
-                      color: AppColors.pinkBright,
+                  style: TextStyle(
+                      color: colors.accent,
                       fontSize: 12, fontWeight: FontWeight.w700)),
             ],
           ),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppColors.pinkBright,
-              inactiveTrackColor: AppColors.pinkBright.withAlpha(40),
-              thumbColor: AppColors.pinkBright,
-              overlayColor: AppColors.pinkBright.withAlpha(30),
+              activeTrackColor: colors.accent,
+              inactiveTrackColor: colors.accent.withValues(alpha: 0.2),
+              thumbColor: colors.accent,
+              overlayColor: colors.accent.withValues(alpha: 0.15),
               trackHeight: 3,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             ),
@@ -760,15 +759,13 @@ class _ParamSlider extends StatelessWidget {
             ),
           ),
           Text(hint,
-              style: const TextStyle(color: AppColors.textLight, fontSize: 10)),
+              style: TextStyle(color: colors.textLight, fontSize: 10)),
           const SizedBox(height: 4),
         ],
       ),
     );
   }
 }
-
-// ─── Data panel ───────────────────────────────────────────────────────────────
 
 class _DataPanel extends StatelessWidget {
   const _DataPanel({
@@ -786,12 +783,15 @@ class _DataPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     if (data == null) {
       return GlassCard(
         borderRadius: 14,
-        child: const Center(
+        child: Center(
           child: Text('No data yet — tap DATA ON',
-              style: TextStyle(color: AppColors.textLight)),
+              style: TextStyle(color: colors.textLight)),
         ),
       );
     }
@@ -827,7 +827,7 @@ class _DataPanel extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _AngleCard('YAW',   data!.yaw,   AppColors.pinkBright)),
+            Expanded(child: _AngleCard('YAW',   data!.yaw,   primary)),
             const SizedBox(width: 8),
             Expanded(child: _AngleCard('PITCH', data!.pitch, const Color(0xFF5AC8FA))),
             const SizedBox(width: 8),
@@ -872,8 +872,6 @@ class _DataPanel extends StatelessWidget {
   }
 }
 
-// ─── Form indicator (cheat-swing) ────────────────────────────────────────────
-
 class _FormIndicator extends StatelessWidget {
   const _FormIndicator({
     required this.score,
@@ -904,6 +902,7 @@ class _FormIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     final fraction = (score / _kMaxDisplay).clamp(0.0, 1.0);
     return GlassCard(
       borderRadius: 14,
@@ -914,9 +913,9 @@ class _FormIndicator extends StatelessWidget {
           Row(children: [
             Icon(_icon, color: _color, size: 16),
             const SizedBox(width: 6),
-            const Text('FORM',
+            Text('FORM',
                 style: TextStyle(
-                    color: AppColors.textLight, fontSize: 10,
+                    color: colors.textLight, fontSize: 10,
                     fontWeight: FontWeight.w700, letterSpacing: 1.1)),
           ]),
           const SizedBox(height: 8),
@@ -925,8 +924,8 @@ class _FormIndicator extends StatelessWidget {
                   color: _color, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 2),
           Text('ratio ${score.toStringAsFixed(1)}',
-              style: const TextStyle(
-                  color: AppColors.textMid, fontSize: 11,
+              style: TextStyle(
+                  color: colors.textMid, fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ClipRRect(
@@ -942,8 +941,6 @@ class _FormIndicator extends StatelessWidget {
     );
   }
 }
-
-// ─── Tremor indicator ─────────────────────────────────────────────────────────
 
 class _TremorIndicator extends StatelessWidget {
   const _TremorIndicator({
@@ -962,7 +959,7 @@ class _TremorIndicator extends StatelessWidget {
   }
 
   Color get _color {
-    if (score < none) return AppColors.textLight;
+    if (score < none) return const Color(0xFF607D8B);
     if (score < mild) return const Color(0xFFFF9500);
     return const Color(0xFFFF3B30);
   }
@@ -971,6 +968,7 @@ class _TremorIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     final fraction = (score / _fullBar).clamp(0.0, 1.0);
     return GlassCard(
       borderRadius: 14,
@@ -981,9 +979,9 @@ class _TremorIndicator extends StatelessWidget {
           Row(children: [
             Icon(Icons.vibration_rounded, color: _color, size: 16),
             const SizedBox(width: 6),
-            const Text('TREMOR',
+            Text('TREMOR',
                 style: TextStyle(
-                    color: AppColors.textLight, fontSize: 10,
+                    color: colors.textLight, fontSize: 10,
                     fontWeight: FontWeight.w700, letterSpacing: 1.1)),
           ]),
           const SizedBox(height: 8),
@@ -992,8 +990,8 @@ class _TremorIndicator extends StatelessWidget {
                   color: _color, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 2),
           Text('${score.toStringAsFixed(3)} g',
-              style: const TextStyle(
-                  color: AppColors.textMid, fontSize: 11,
+              style: TextStyle(
+                  color: colors.textMid, fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ClipRRect(
@@ -1010,8 +1008,6 @@ class _TremorIndicator extends StatelessWidget {
   }
 }
 
-// ─── Angle card ───────────────────────────────────────────────────────────────
-
 class _AngleCard extends StatelessWidget {
   const _AngleCard(this.label, this.value, this.color);
   final String label;
@@ -1020,6 +1016,7 @@ class _AngleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -1031,16 +1028,14 @@ class _AngleCard extends StatelessWidget {
                   letterSpacing: 0.8)),
           const SizedBox(height: 6),
           Text('${value.toStringAsFixed(1)}°',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w800, fontSize: 22,
-                  color: AppColors.textDark)),
+                  color: colors.textDark)),
         ],
       ),
     );
   }
 }
-
-// ─── Axis row ─────────────────────────────────────────────────────────────────
 
 class _AxisRow extends StatelessWidget {
   const _AxisRow({
@@ -1089,6 +1084,7 @@ class _AxisBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     final fraction = (value.abs() / maxAbs).clamp(0.0, 1.0);
     final isNeg = value < 0;
     return Expanded(
@@ -1098,13 +1094,13 @@ class _AxisBar extends StatelessWidget {
           Row(
             children: [
               Text(axis,
-                  style: const TextStyle(
-                      color: AppColors.textLight, fontSize: 10,
+                  style: TextStyle(
+                      color: colors.textLight, fontSize: 10,
                       fontWeight: FontWeight.w700)),
               const Spacer(),
               Text('${isNeg ? '' : '+'}${value.toStringAsFixed(2)}',
                   style: TextStyle(
-                      color: isNeg ? const Color(0xFFFF9500) : AppColors.textDark,
+                      color: isNeg ? const Color(0xFFFF9500) : colors.textDark,
                       fontSize: 11, fontWeight: FontWeight.w700)),
             ],
           ),
@@ -1123,8 +1119,6 @@ class _AxisBar extends StatelessWidget {
     );
   }
 }
-
-// ─── Battery card ─────────────────────────────────────────────────────────────
 
 class _BatteryCard extends StatelessWidget {
   const _BatteryCard({required this.voltage});
@@ -1155,6 +1149,7 @@ class _BatteryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1169,9 +1164,9 @@ class _BatteryCard extends StatelessWidget {
                 Row(
                   children: [
                     Text('${voltage.toStringAsFixed(2)} V',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 20,
-                            color: AppColors.textDark)),
+                            color: colors.textDark)),
                     const SizedBox(width: 8),
                     Text(_label,
                         style: TextStyle(
@@ -1197,17 +1192,16 @@ class _BatteryCard extends StatelessWidget {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
   final String text;
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
     return Text(text.toUpperCase(),
-        style: const TextStyle(
-            color: AppColors.textLight, fontSize: 11,
+        style: TextStyle(
+            color: colors.textLight, fontSize: 11,
             fontWeight: FontWeight.w700, letterSpacing: 1.2));
   }
 }

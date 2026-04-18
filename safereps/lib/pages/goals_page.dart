@@ -68,44 +68,46 @@ class _SessionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+
     return GestureDetector(
       onTap: () => _openSheet(context),
       child: GlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         borderRadius: 100,
-        tint: AppColors.glassPinkTint,
+        tint: themeColors.glassTint,
         child: Row(
           children: [
             Container(
               width: 30,
               height: 30,
               decoration: BoxDecoration(
-                color: AppColors.pink,
+                color: themeColors.accent.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.tune_rounded,
-                  size: 16, color: AppColors.textDark),
+              child: Icon(Icons.tune_rounded,
+                  size: 16, color: themeColors.textDark),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Session',
+                  Text('Session',
                       style: TextStyle(
-                          color: AppColors.textDark,
+                          color: themeColors.textDark,
                           fontWeight: FontWeight.w700,
                           fontSize: 13)),
                   Text(
                     '${model.sessionSets} sets  ·  ${_fmt(model.interSetRestSecs)} between sets  ·  ${_fmt(model.interExerciseRestSecs)} between exercises',
-                    style: const TextStyle(
-                        color: AppColors.textLight, fontSize: 11),
+                    style: TextStyle(
+                        color: themeColors.textLight, fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.beige),
+            Icon(Icons.chevron_right_rounded, color: themeColors.unselected),
           ],
         ),
       ),
@@ -154,20 +156,22 @@ class _SessionSheetState extends State<_SessionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+
     return Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         child: GlassCard(
-          tint: AppColors.glassPinkTint,
+          tint: themeColors.glassTint,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Session Setup',
+              Text('Session Setup',
                   style: TextStyle(
-                      color: AppColors.textDark,
+                      color: themeColors.textDark,
                       fontSize: 18,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 20),
@@ -248,22 +252,24 @@ class _SheetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Expanded(
             child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textDark, fontSize: 14)),
+                style: TextStyle(
+                    color: themeColors.textDark, fontSize: 14)),
           ),
           _StepBtn(icon: Icons.remove_rounded, onTap: onDec),
           SizedBox(
             width: 56,
             child: Text(value,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: AppColors.textDark,
+                style: TextStyle(
+                    color: themeColors.textDark,
                     fontWeight: FontWeight.w700,
                     fontSize: 15)),
           ),
@@ -279,7 +285,7 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(color: Color(0x22000000), height: 1);
+    return Divider(color: Colors.black.withAlpha(20), height: 1);
   }
 }
 
@@ -291,6 +297,7 @@ class _StepBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     final enabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
@@ -298,13 +305,13 @@ class _StepBtn extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: enabled ? AppColors.pink : const Color(0x22F2AFC4),
+          color: enabled ? themeColors.accent : themeColors.accent.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon,
             size: 16,
             color:
-                enabled ? AppColors.textDark : AppColors.textLight),
+                enabled ? themeColors.textDark : themeColors.textLight),
       ),
     );
   }
@@ -331,6 +338,9 @@ class _ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
       padding: EdgeInsets.zero,
       child: AnimatedSize(
@@ -359,17 +369,17 @@ class _ExerciseCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(exercise.name,
-                                style: const TextStyle(
-                                    color: AppColors.textDark,
+                                style: TextStyle(
+                                    color: themeColors.textDark,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16)),
                           ),
                           AnimatedRotation(
                             turns: expanded ? 0.5 : 0,
                             duration: const Duration(milliseconds: 300),
-                            child: const Icon(
+                            child: Icon(
                                 Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.beige),
+                                color: themeColors.unselected),
                           ),
                         ],
                       ),
@@ -382,20 +392,20 @@ class _ExerciseCard extends StatelessWidget {
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text('${exercise.doneToday}',
-                            style: const TextStyle(
-                                color: AppColors.pinkBright,
+                            style: TextStyle(
+                                color: primary,
                                 fontSize: 36,
                                 fontWeight: FontWeight.w800,
                                 height: 1)),
                         Text(' / ${exercise.totalGoal}',
-                            style: const TextStyle(
-                                color: AppColors.textMid,
+                            style: TextStyle(
+                                color: themeColors.textMid,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(width: 6),
-                        const Text('reps today',
+                        Text('reps today',
                             style: TextStyle(
-                                color: AppColors.textLight,
+                                color: themeColors.textLight,
                                 fontSize: 12)),
                       ],
                     ),
@@ -406,8 +416,8 @@ class _ExerciseCard extends StatelessWidget {
 
               // Expanded section
               if (expanded) ...[
-                const Divider(
-                    color: Color(0x22000000), height: 1, indent: 16, endIndent: 16),
+                Divider(
+                    color: Colors.black.withAlpha(20), height: 1, indent: 16, endIndent: 16),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
                   child: _ExpandedSection(
@@ -432,28 +442,33 @@ class _CardImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder — will be replaced with a real image asset
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Container(
         height: 120,
         width: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFF8DCE8), Color(0xFFEED4C4)],
+            colors: [
+              primary.withValues(alpha: 0.2), 
+              themeColors.accent.withValues(alpha: 0.3)
+            ],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.fitness_center_rounded,
-                size: 40, color: Color(0xFFD6A0B0)),
+            Icon(Icons.fitness_center_rounded,
+                size: 40, color: primary.withValues(alpha: 0.5)),
             const SizedBox(height: 6),
             Text(name,
-                style: const TextStyle(
-                    color: Color(0xFFBB8899),
+                style: TextStyle(
+                    color: themeColors.textMid,
                     fontSize: 12,
                     fontWeight: FontWeight.w500)),
           ],
@@ -476,6 +491,8 @@ class _ExpandedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+
     return Column(
       children: [
         _CardRow(
@@ -505,8 +522,8 @@ class _ExpandedSection extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: Text(
             'Goal: ${exercise.totalGoal} reps / day',
-            style: const TextStyle(
-                color: AppColors.textLight, fontSize: 11),
+            style: TextStyle(
+                color: themeColors.textLight, fontSize: 11),
           ),
         ),
       ],
@@ -529,12 +546,15 @@ class _CardRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Row(
       children: [
         Expanded(
           child: Text(label,
-              style: const TextStyle(
-                  color: AppColors.textDark,
+              style: TextStyle(
+                  color: themeColors.textDark,
                   fontSize: 14,
                   fontWeight: FontWeight.w500)),
         ),
@@ -543,8 +563,8 @@ class _CardRow extends StatelessWidget {
           width: 44,
           child: Text(value,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: AppColors.pinkBright,
+              style: TextStyle(
+                  color: primary,
                   fontWeight: FontWeight.w800,
                   fontSize: 16)),
         ),

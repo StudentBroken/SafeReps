@@ -23,16 +23,18 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTheme.colors(context);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           decoration: BoxDecoration(
-            color: tint ?? AppColors.glassFill,
+            color: tint ?? colors.glassFill,
             borderRadius: BorderRadius.circular(borderRadius),
             border: border
-                ? Border.all(color: AppColors.glassBorder, width: 0.8)
+                ? Border.all(color: colors.glassBorder, width: 0.8)
                 : null,
           ),
           padding: padding,

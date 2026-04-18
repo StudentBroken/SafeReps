@@ -46,7 +46,9 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    final model = GoalsScope.of(context); // rebuilds when model notifies
+    final model = GoalsScope.of(context);
+    final themeColors = AppTheme.colors(context);
+    
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0).copyWith(
@@ -54,11 +56,9 @@ class _DashboardPageState extends State<DashboardPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────────────────────────
             _DashHeader(),
             const SizedBox(height: 16),
 
-            // ── Section 1 & 2: ring + bar chart ─────────────────────────────
             SizedBox(
               height: 168,
               child: Row(
@@ -75,8 +75,6 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 12),
 
-
-            // ── Section 4 header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
@@ -84,7 +82,7 @@ class _DashboardPageState extends State<DashboardPage>
                 style: Theme.of(context)
                     .textTheme
                     .labelLarge
-                    ?.copyWith(color: AppColors.textMid, fontSize: 13),
+                    ?.copyWith(color: themeColors.textMid, fontSize: 13),
               ),
             ),
             Row(
@@ -93,7 +91,7 @@ class _DashboardPageState extends State<DashboardPage>
                   child: _SafetyCard(
                     title: 'Warm Up',
                     icon: Icons.self_improvement_rounded,
-                    color: const Color(0xFFFFD6E0),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -101,14 +99,13 @@ class _DashboardPageState extends State<DashboardPage>
                   child: _SafetyCard(
                     title: 'Proper Form',
                     icon: Icons.accessibility_new_rounded,
-                    color: const Color(0xFFD6EAFF),
+                    color: themeColors.accent.withValues(alpha: 0.5),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
 
-            // ── Section 5: start button ──────────────────────────────────────
             Center(
               child: _StartButton(
                 pulseAnim: _pulseAnim,
@@ -143,7 +140,6 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 32),
 
-            // ── Today's Progress Section (Moved) ─────────────────────────────
             _ProgressPillsCard(exercises: model.exercises),
           ],
         ),
@@ -151,8 +147,6 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 }
-
-// ── Header ───────────────────────────────────────────────────────────────────
 
 class _DashHeader extends StatelessWidget {
   @override
@@ -177,8 +171,6 @@ class _DashHeader extends StatelessWidget {
     );
   }
 }
-
-// ── BLE pill ─────────────────────────────────────────────────────────────────
 
 class _BlePill extends StatelessWidget {
   const _BlePill();
@@ -269,8 +261,6 @@ class _BlePill extends StatelessWidget {
   }
 }
 
-// ── BLE connect sheet ─────────────────────────────────────────────────────────
-
 class _BleConnectSheet extends StatefulWidget {
   const _BleConnectSheet({required this.ble});
   final BleService ble;
@@ -283,7 +273,6 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
   @override
   void initState() {
     super.initState();
-    // Auto-scan when sheet opens if no saved device and idle
     if (widget.ble.savedDeviceId == null &&
         widget.ble.connectionState == BleConnectionState.idle) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -294,6 +283,9 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return AnimatedBuilder(
       animation: widget.ble,
       builder: (context, _) {
@@ -313,11 +305,11 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
               filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.82),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(28)),
-                  border: const Border(
-                    top: BorderSide(color: AppColors.glassBorder, width: 1),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withAlpha(50), width: 1),
                   ),
                 ),
                 child: SafeArea(
@@ -328,20 +320,18 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Drag handle ─────────────────────────────────
                         Center(
                           child: Container(
                             width: 38,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: AppColors.beige,
+                              color: themeColors.unselected,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
                         ),
                         const SizedBox(height: 18),
 
-                        // ── Title row ───────────────────────────────────
                         Row(
                           children: [
                             Container(
@@ -350,7 +340,7 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
                               decoration: BoxDecoration(
                                 color: connected
                                     ? const Color(0x2234C759)
-                                    : AppColors.pink.withValues(alpha: 0.4),
+                                    : themeColors.accent.withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -360,26 +350,26 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
                                 size: 20,
                                 color: connected
                                     ? const Color(0xFF34C759)
-                                    : AppColors.pinkBright,
+                                    : primary,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Wearable Module',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.textDark,
+                                    color: themeColors.textDark,
                                   ),
                                 ),
                                 if (ble.statusMessage != null)
                                   Text(
                                     ble.statusMessage!,
-                                    style: const TextStyle(
-                                        color: AppColors.textMid, fontSize: 11),
+                                    style: TextStyle(
+                                        color: themeColors.textMid, fontSize: 11),
                                   ),
                               ],
                             ),
@@ -387,7 +377,6 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ── State-dependent body ────────────────────────
                         if (connected)
                           _SheetConnectedBody(ble: ble)
                         else if (reconnecting)
@@ -407,21 +396,15 @@ class _BleConnectSheetState extends State<_BleConnectSheet> {
   }
 }
 
-// ── Sheet: connected ──────────────────────────────────────────────────────────
-
 class _SheetConnectedBody extends StatelessWidget {
   const _SheetConnectedBody({required this.ble});
   final BleService ble;
 
-  Color get _battColor {
-    final v = ble.battVoltage;
-    if (v == null) return AppColors.textLight;
-    if (v >= 3.6) return const Color(0xFF34C759);
-    return const Color(0xFFFF3B30);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final battColor = _getBattColor(themeColors);
+
     final name = ble.connectedDevice?.platformName.isNotEmpty == true
         ? ble.connectedDevice!.platformName
         : ble.savedDeviceName ?? 'Connected';
@@ -433,7 +416,6 @@ class _SheetConnectedBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Device + battery card
         GlassCard(
           borderRadius: 16,
           padding: const EdgeInsets.all(16),
@@ -452,9 +434,9 @@ class _SheetConnectedBody extends StatelessWidget {
                   Expanded(
                     child: Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textDark,
+                          color: themeColors.textDark,
                           fontSize: 15),
                     ),
                   ),
@@ -464,7 +446,7 @@ class _SheetConnectedBody extends StatelessWidget {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Icon(_battIcon(batt), color: _battColor, size: 22),
+                    Icon(_battIcon(batt), color: battColor, size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -477,13 +459,13 @@ class _SheetConnectedBody extends StatelessWidget {
                                 style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 18,
-                                    color: _battColor),
+                                    color: battColor),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 _battLabel(batt),
                                 style: TextStyle(
-                                    color: _battColor,
+                                    color: battColor,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600),
                               ),
@@ -498,7 +480,7 @@ class _SheetConnectedBody extends StatelessWidget {
                                 minHeight: 5,
                                 backgroundColor: const Color(0x18000000),
                                 valueColor:
-                                    AlwaysStoppedAnimation(_battColor),
+                                    AlwaysStoppedAnimation(battColor),
                               ),
                             ),
                         ],
@@ -508,16 +490,15 @@ class _SheetConnectedBody extends StatelessWidget {
                 ),
               ] else ...[
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Start streaming in Debug View to see battery',
-                  style: TextStyle(color: AppColors.textLight, fontSize: 12),
+                  style: TextStyle(color: themeColors.textLight, fontSize: 12),
                 ),
               ],
             ],
           ),
         ),
         const SizedBox(height: 12),
-        // Forget button
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFFFF3B30),
@@ -535,6 +516,13 @@ class _SheetConnectedBody extends StatelessWidget {
     );
   }
 
+  Color _getBattColor(BrandColors colors) {
+    final v = ble.battVoltage;
+    if (v == null) return colors.textLight;
+    if (v >= 3.6) return const Color(0xFF34C759);
+    return const Color(0xFFFF3B30);
+  }
+
   IconData _battIcon(double v) {
     if (v >= 4.0) return Icons.battery_full_rounded;
     if (v >= 3.6) return Icons.battery_5_bar_rounded;
@@ -550,36 +538,37 @@ class _SheetConnectedBody extends StatelessWidget {
   }
 }
 
-// ── Sheet: reconnecting ───────────────────────────────────────────────────────
-
 class _SheetReconnectBody extends StatelessWidget {
   const _SheetReconnectBody({required this.ble});
   final BleService ble;
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
       borderRadius: 16,
       child: Column(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 32,
             height: 32,
             child: CircularProgressIndicator(
-                color: AppColors.pinkBright, strokeWidth: 3),
+                color: primary, strokeWidth: 3),
           ),
           const SizedBox(height: 14),
           Text(
             ble.savedDeviceName ?? 'Saved device',
-            style: const TextStyle(
+            style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
+                color: themeColors.textDark,
                 fontSize: 15),
           ),
           const SizedBox(height: 4),
           Text(
             'Attempt ${ble.reconnectAttempt}',
-            style: const TextStyle(color: AppColors.textMid, fontSize: 13),
+            style: TextStyle(color: themeColors.textMid, fontSize: 13),
           ),
           const SizedBox(height: 16),
           Row(
@@ -587,8 +576,8 @@ class _SheetReconnectBody extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textMid,
-                    side: const BorderSide(color: AppColors.beige),
+                    foregroundColor: themeColors.textMid,
+                    side: BorderSide(color: themeColors.unselected),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
@@ -617,8 +606,6 @@ class _SheetReconnectBody extends StatelessWidget {
   }
 }
 
-// ── Sheet: scan / idle ────────────────────────────────────────────────────────
-
 class _SheetScanBody extends StatelessWidget {
   const _SheetScanBody({required this.ble, required this.scanning});
   final BleService ble;
@@ -626,10 +613,12 @@ class _SheetScanBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Saved device card (if any)
         if (ble.savedDeviceId != null) ...[
           GlassCard(
             borderRadius: 14,
@@ -640,29 +629,29 @@ class _SheetScanBody extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: AppColors.pinkBright.withValues(alpha: 0.15),
+                    color: primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.bluetooth_connected_rounded,
-                      color: AppColors.pinkBright, size: 17),
+                  child: Icon(Icons.bluetooth_connected_rounded,
+                      color: primary, size: 17),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Saved Device',
+                      Text('Saved Device',
                           style: TextStyle(
-                              color: AppColors.textLight,
+                              color: themeColors.textLight,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.5)),
                       const SizedBox(height: 2),
                       Text(
                         ble.savedDeviceName ?? ble.savedDeviceId ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textDark,
+                            color: themeColors.textDark,
                             fontSize: 14),
                       ),
                     ],
@@ -683,7 +672,7 @@ class _SheetScanBody extends StatelessWidget {
                   onPressed: () => ble.connect(BluetoothDevice(
                       remoteId: DeviceIdentifier(ble.savedDeviceId!))),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.pinkBright,
+                    backgroundColor: primary,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 8),
                     shape: RoundedRectangleBorder(
@@ -701,10 +690,9 @@ class _SheetScanBody extends StatelessWidget {
           const SizedBox(height: 12),
         ],
 
-        // Scan button
         FilledButton.icon(
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.pinkBright,
+            backgroundColor: primary,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
@@ -725,13 +713,12 @@ class _SheetScanBody extends StatelessWidget {
           ),
         ),
 
-        // Scan results
         if (ble.scanResults.isNotEmpty) ...[
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'DISCOVERED',
             style: TextStyle(
-                color: AppColors.textLight,
+                color: themeColors.textLight,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2),
@@ -774,6 +761,9 @@ class _ScanDeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     final name = result.device.platformName.isNotEmpty
         ? result.device.platformName
         : 'Unknown (${result.device.remoteId})';
@@ -783,32 +773,30 @@ class _ScanDeviceTile extends StatelessWidget {
         height: 34,
         decoration: BoxDecoration(
           color: isSaved
-              ? AppColors.pinkBright.withValues(alpha: 0.15)
-              : AppColors.pink.withValues(alpha: 0.5),
+              ? primary.withValues(alpha: 0.15)
+              : themeColors.accent.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           isSaved
               ? Icons.bluetooth_connected_rounded
               : Icons.bluetooth_rounded,
-          color: isSaved ? AppColors.pinkBright : AppColors.textDark,
+          color: isSaved ? primary : themeColors.textDark,
           size: 17,
         ),
       ),
       title: Text(name,
-          style: const TextStyle(
+          style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
+              color: themeColors.textDark,
               fontSize: 14)),
       subtitle: Text('${result.rssi} dBm',
-          style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.beige),
+          style: TextStyle(color: themeColors.textMid, fontSize: 11)),
+      trailing: Icon(Icons.chevron_right_rounded, color: themeColors.unselected),
       onTap: onTap,
     );
   }
 }
-
-// ── Section 1: circular progress ring ────────────────────────────────────────
 
 class _ProgressRingCard extends StatelessWidget {
   const _ProgressRingCard({required this.progress});
@@ -816,6 +804,9 @@ class _ProgressRingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -826,25 +817,25 @@ class _ProgressRingCard extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 1,
                 child: CustomPaint(
-                  painter: _RingPainter(progress: progress),
+                  painter: _RingPainter(progress: progress, color: primary),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           '${(progress * 100).round()}%',
-                          style: const TextStyle(
-                            color: AppColors.pinkBright,
+                          style: TextStyle(
+                            color: primary,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             height: 1,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
+                        Text(
                           'today',
                           style: TextStyle(
-                            color: AppColors.textLight,
+                            color: themeColors.textLight,
                             fontSize: 10,
                           ),
                         ),
@@ -856,10 +847,10 @@ class _ProgressRingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Daily Goal',
             style: TextStyle(
-              color: AppColors.textMid,
+              color: themeColors.textMid,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -871,25 +862,24 @@ class _ProgressRingCard extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.progress});
+  const _RingPainter({required this.progress, required this.color});
   final double progress;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.shortestSide / 2) - 6;
 
-    // Track
     canvas.drawCircle(
       center,
       radius,
       Paint()
-        ..color = const Color(0x33D6176E)
+        ..color = color.withValues(alpha: 0.15)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 9,
     );
 
-    // Progress arc
     if (progress > 0) {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
@@ -897,7 +887,7 @@ class _RingPainter extends CustomPainter {
         2 * pi * progress,
         false,
         Paint()
-          ..color = AppColors.pinkBright
+          ..color = color
           ..style = PaintingStyle.stroke
           ..strokeWidth = 9
           ..strokeCap = StrokeCap.round,
@@ -906,10 +896,8 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+  bool shouldRepaint(_RingPainter old) => old.progress != progress || old.color != color;
 }
-
-// ── Section 2: bar chart ──────────────────────────────────────────────────────
 
 class _BarChartCard extends StatelessWidget {
   const _BarChartCard({required this.exercises});
@@ -917,15 +905,16 @@ class _BarChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Reps today',
             style: TextStyle(
-              color: AppColors.textMid,
+              color: themeColors.textMid,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -950,7 +939,6 @@ class _BarChartCard extends StatelessWidget {
   }
 
   String _shortName(String name) {
-    // "Lateral Raise" → "Lat. R."  |  "Bicep Curl" → "Bicep"
     final parts = name.split(' ');
     if (parts.length == 1) return name;
     return '${parts.first.substring(0, 3).toLowerCase()}.';
@@ -965,6 +953,9 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     const maxHeight = 80.0;
     final barH = (maxHeight * fraction).clamp(4.0, maxHeight);
 
@@ -973,8 +964,8 @@ class _Bar extends StatelessWidget {
       children: [
         Text(
           '$value',
-          style: const TextStyle(
-            color: AppColors.textDark,
+          style: TextStyle(
+            color: themeColors.textDark,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -988,7 +979,7 @@ class _Bar extends StatelessWidget {
             width: 28,
             height: barH,
             decoration: BoxDecoration(
-              color: AppColors.pinkBright,
+              color: primary,
               borderRadius: BorderRadius.circular(6),
             ),
           ),
@@ -996,8 +987,8 @@ class _Bar extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textLight,
+          style: TextStyle(
+            color: themeColors.textLight,
             fontSize: 10,
           ),
         ),
@@ -1006,22 +997,21 @@ class _Bar extends StatelessWidget {
   }
 }
 
-// ── Section 3: pill progress bars ─────────────────────────────────────────────
-
 class _ProgressPillsCard extends StatelessWidget {
   const _ProgressPillsCard({required this.exercises});
   final List<ExerciseGoal> exercises;
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Today's Progress",
             style: TextStyle(
-              color: AppColors.textMid,
+              color: themeColors.textMid,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -1043,6 +1033,9 @@ class _PillBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1051,16 +1044,16 @@ class _PillBar extends StatelessWidget {
           children: [
             Text(
               exercise.name,
-              style: const TextStyle(
-                color: AppColors.textDark,
+              style: TextStyle(
+                color: themeColors.textDark,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
             Text(
               '${exercise.doneToday} / ${exercise.totalGoal}',
-              style: const TextStyle(
-                color: AppColors.textLight,
+              style: TextStyle(
+                color: themeColors.textLight,
                 fontSize: 11,
               ),
             ),
@@ -1072,17 +1065,14 @@ class _PillBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: exercise.fraction,
             minHeight: 10,
-            backgroundColor: const Color(0x22D6176E),
-            valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.pinkBright),
+            backgroundColor: primary.withValues(alpha: 0.15),
+            valueColor: AlwaysStoppedAnimation<Color>(primary),
           ),
         ),
       ],
     );
   }
 }
-
-// ── Section 4: safety cards ───────────────────────────────────────────────────
 
 class _SafetyCard extends StatelessWidget {
   const _SafetyCard({
@@ -1097,6 +1087,7 @@ class _SafetyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     return GestureDetector(
       onTap: () => _showModal(context),
       child: GlassCard(
@@ -1111,22 +1102,22 @@ class _SafetyCard extends StatelessWidget {
                 color: color,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: AppColors.textDark, size: 22),
+              child: Icon(icon, color: themeColors.textDark, size: 22),
             ),
             const SizedBox(height: 10),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textDark,
+              style: TextStyle(
+                color: themeColors.textDark,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Tap to learn',
-              style: TextStyle(color: AppColors.textLight, fontSize: 10),
+              style: TextStyle(color: themeColors.textLight, fontSize: 10),
             ),
           ],
         ),
@@ -1135,6 +1126,7 @@ class _SafetyCard extends StatelessWidget {
   }
 
   void _showModal(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1147,12 +1139,12 @@ class _SafetyCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(icon, color: AppColors.textDark, size: 20),
+                  Icon(icon, color: themeColors.textDark, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: AppColors.textDark,
+                    style: TextStyle(
+                      color: themeColors.textDark,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1160,9 +1152,9 @@ class _SafetyCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Tutorial content coming soon.\n\nThis section will guide you through safe exercise practices tailored to each movement.',
-                style: TextStyle(color: AppColors.textMid, fontSize: 13, height: 1.5),
+                style: TextStyle(color: themeColors.textMid, fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 20),
               Align(
@@ -1180,8 +1172,6 @@ class _SafetyCard extends StatelessWidget {
   }
 }
 
-// ── Section 5: animated start button ─────────────────────────────────────────
-
 class _StartButton extends StatelessWidget {
   const _StartButton({required this.pulseAnim, required this.onTap});
 
@@ -1190,6 +1180,8 @@ class _StartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return AnimatedBuilder(
       animation: pulseAnim,
       builder: (context, child) {
@@ -1202,10 +1194,10 @@ class _StartButton extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(100),
-                color: AppColors.pinkBright,
+                color: primary,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.pinkBright
+                    color: primary
                         .withAlpha((100 * pulseAnim.value).round()),
                     blurRadius: 40 * pulseAnim.value,
                     spreadRadius: 6 * pulseAnim.value,

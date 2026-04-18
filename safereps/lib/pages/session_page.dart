@@ -345,7 +345,6 @@ class _SessionPageState extends State<SessionPage>
   }
 
   void _advanceSession() {
-    // Record completed reps in the model so dashboard updates live
     widget.goals.markSetComplete(_exerciseIndex, _currentGoal.repsPerSet);
 
     _repCounter = null;
@@ -405,7 +404,7 @@ class _SessionPageState extends State<SessionPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Full-screen camera (cover crop, no black bars) ─────────────
+          // ── Full-screen camera ─────────────
           if (cameraReady)
             Positioned.fill(
               child: ClipRect(
@@ -439,7 +438,7 @@ class _SessionPageState extends State<SessionPage>
               child: CircularProgressIndicator(color: Colors.white54),
             ),
 
-          // ── Close (X) button — top right ───────────────────────────────
+          // ── Close (X) button ───────────────────────────────
           Positioned(
             top: 0,
             right: 0,
@@ -459,7 +458,7 @@ class _SessionPageState extends State<SessionPage>
             ),
           ),
 
-          // ── Active: progress ring island — top left ─────────────────────
+          // ── Active: progress ring island ─────────────────────
           if (isActive && hasExercise)
             Positioned(
               top: 0,
@@ -477,7 +476,7 @@ class _SessionPageState extends State<SessionPage>
               ),
             ),
 
-          // ── Active: rep count pill — bottom floating ────────────────────
+          // ── Active: rep count pill ────────────────────
           if (isActive && hasExercise)
             Positioned(
               bottom: 0,
@@ -495,7 +494,7 @@ class _SessionPageState extends State<SessionPage>
               ),
             ),
 
-          // ── Notification banner — top slide, always mounted for smooth exit
+          // ── Notification banner ─────────────────────
           Positioned(
             top: 0,
             left: 0,
@@ -624,16 +623,19 @@ class _PreviewSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
-      tint: AppColors.glassPinkTint,
+      tint: themeColors.glassTint,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Session Preview',
             style: TextStyle(
-                color: AppColors.textDark,
+                color: themeColors.textDark,
                 fontSize: 18,
                 fontWeight: FontWeight.w800),
           ),
@@ -647,24 +649,24 @@ class _PreviewSheet extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: AppColors.pink,
+                      color: themeColors.accent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.fitness_center_rounded,
-                        size: 16, color: AppColors.textDark),
+                    child: Icon(Icons.fitness_center_rounded,
+                        size: 16, color: themeColors.textDark),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(e.name,
-                        style: const TextStyle(
-                            color: AppColors.textDark,
+                        style: TextStyle(
+                            color: themeColors.textDark,
                             fontWeight: FontWeight.w600,
                             fontSize: 14)),
                   ),
                   Text(
                     '${goals.sessionSets} × ${e.repsPerSet} reps',
-                    style: const TextStyle(
-                        color: AppColors.textMid, fontSize: 13),
+                    style: TextStyle(
+                        color: themeColors.textMid, fontSize: 13),
                   ),
                 ],
               ),
@@ -673,15 +675,15 @@ class _PreviewSheet extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.timer_outlined,
-                  size: 13, color: AppColors.textLight),
+              Icon(Icons.timer_outlined,
+                  size: 13, color: themeColors.textLight),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   '${_fmtSecs(goals.interSetRestSecs)} between sets  ·  '
                   '${_fmtSecs(goals.interExerciseRestSecs)} between exercises',
-                  style: const TextStyle(
-                      color: AppColors.textLight, fontSize: 11),
+                  style: TextStyle(
+                      color: themeColors.textLight, fontSize: 11),
                 ),
               ),
             ],
@@ -692,8 +694,8 @@ class _PreviewSheet extends StatelessWidget {
             children: [
               TextButton(
                 onPressed: onCancel,
-                child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.textMid)),
+                child: Text('Cancel',
+                    style: TextStyle(color: themeColors.textMid)),
               ),
               // Countdown ring
               SizedBox(
@@ -706,13 +708,12 @@ class _PreviewSheet extends StatelessWidget {
                       value: countdown / 5,
                       strokeWidth: 3.5,
                       backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.pinkBright),
+                      valueColor: AlwaysStoppedAnimation<Color>(primary),
                     ),
                     Text(
                       '$countdown',
-                      style: const TextStyle(
-                          color: AppColors.pinkBright,
+                      style: TextStyle(
+                          color: primary,
                           fontSize: 22,
                           fontWeight: FontWeight.w800),
                     ),
@@ -742,15 +743,18 @@ class _GetReadyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
-      tint: AppColors.glassPinkTint,
+      tint: themeColors.glassTint,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'Get Ready for',
             style: TextStyle(
-                color: AppColors.textMid,
+                color: themeColors.textMid,
                 fontSize: 14,
                 fontWeight: FontWeight.w500),
           ),
@@ -758,13 +762,12 @@ class _GetReadyCard extends StatelessWidget {
           Text(
             exerciseName,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: AppColors.pinkBright,
+            style: TextStyle(
+                color: primary,
                 fontSize: 26,
                 fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 20),
-          // Dot countdown: 3 dots, filled ones = remaining seconds
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(3, (i) {
@@ -777,9 +780,7 @@ class _GetReadyCard extends StatelessWidget {
                   height: filled ? 14 : 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: filled
-                        ? AppColors.pinkBright
-                        : AppColors.pinkBright.withAlpha(55),
+                    color: filled ? primary : primary.withValues(alpha: 0.2),
                   ),
                 ),
               );
@@ -810,14 +811,16 @@ class _ProgressIsland extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.pinkBright.withValues(alpha: 0.92),
+        color: primary.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.pinkBright.withValues(alpha: 0.35),
+            color: primary.withValues(alpha: 0.35),
             blurRadius: 16,
             spreadRadius: 1,
           ),
@@ -920,15 +923,17 @@ class _RepCountPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
         decoration: BoxDecoration(
-          color: AppColors.pinkBright.withValues(alpha: 0.92),
+          color: primary.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(100),
           boxShadow: [
             BoxShadow(
-              color: AppColors.pinkBright.withValues(alpha: 0.4),
+              color: primary.withValues(alpha: 0.4),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -973,7 +978,7 @@ class _RepCountPill extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Notification banner (top-slide, translucent red)
+// Notification banner
 // ---------------------------------------------------------------------------
 
 class _NotificationBanner extends StatelessWidget {
@@ -1035,21 +1040,24 @@ class _RestSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return GlassCard(
       tint: const Color(0x22C8E6C9), // soft green tint during rest
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Rest',
+          Text('Rest',
               style: TextStyle(
-                  color: AppColors.textDark,
+                  color: themeColors.textDark,
                   fontSize: 16,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
             _fmtSecs(secondsRemaining),
-            style: const TextStyle(
-                color: AppColors.pinkBright,
+            style: TextStyle(
+                color: primary,
                 fontSize: 44,
                 fontWeight: FontWeight.w800,
                 height: 1),
@@ -1057,8 +1065,8 @@ class _RestSheet extends StatelessWidget {
           if (nextLabel != null) ...[
             const SizedBox(height: 8),
             Text('Next: $nextLabel',
-                style: const TextStyle(
-                    color: AppColors.textMid, fontSize: 13)),
+                style: TextStyle(
+                    color: themeColors.textMid, fontSize: 13)),
           ],
           const SizedBox(height: 18),
           SizedBox(
@@ -1086,6 +1094,8 @@ class _DoneOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Container(
       color: Colors.black87,
       child: SafeArea(
@@ -1097,9 +1107,9 @@ class _DoneOverlay extends StatelessWidget {
               Container(
                 width: 80,
                 height: 80,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.pinkBright,
+                  color: primary,
                 ),
                 child: const Icon(Icons.check_rounded,
                     color: Colors.white, size: 44),

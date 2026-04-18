@@ -74,7 +74,6 @@ class _MainShellState extends State<MainShell> {
       child: GoalsScope(
         model: _goals,
         child: Scaffold(
-          backgroundColor: AppColors.background,
           extendBody: true,
           body: Stack(
             children: [
@@ -134,6 +133,7 @@ class _FloatingNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIOS = _isIOS;
+    final themeColors = AppTheme.colors(context);
     final radius = BorderRadius.circular(_kPillH / 2);
 
     return Padding(
@@ -171,16 +171,16 @@ class _FloatingNav extends StatelessWidget {
                   sigmaX: isIOS ? 48 : 28,
                   sigmaY: isIOS ? 48 : 28,
                 ),
-                // Base fill: near-transparent on iOS, warm tint on Android.
+                // Base fill: near-transparent on iOS, themed tint on Android.
                 child: Container(
                   color: isIOS
                       ? const Color(0x18FFFFFF)   // almost clear glass
-                      : const Color(0xB2F0E6DC),  // warm frosted beige
+                      : Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),
                 ),
               ),
 
               // ── Layer 2: specular + caustic paint ─────────────────────────
-              CustomPaint(painter: _LiquidGlassPainter(isIOS: isIOS)),
+              CustomPaint(painter: _LiquidGlassPainter(isIOS: isIOS, tint: themeColors.accent)),
 
               // ── Layer 2.5: sliding highlight bubble ───────────────────────
               Padding(
@@ -221,8 +221,9 @@ class _FloatingNav extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LiquidGlassPainter extends CustomPainter {
-  const _LiquidGlassPainter({required this.isIOS});
+  const _LiquidGlassPainter({required this.isIOS, required this.tint});
   final bool isIOS;
+  final Color tint;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -239,7 +240,7 @@ class _LiquidGlassPainter extends CustomPainter {
 
   void _paintIOS(
       Canvas canvas, Size size, Rect rect, RRect rrect, double r) {
-    // ── Caustic inner glow: warmer at bottom-centre ────────────────────────
+    // ── Caustic inner glow ────────────────────────
     canvas.drawRRect(
       rrect,
       Paint()
@@ -247,13 +248,13 @@ class _LiquidGlassPainter extends CustomPainter {
           center: const Alignment(0.0, 1.4),
           radius: 1.0,
           colors: [
-            const Color(0x18FFF4E0), // warm caustic light
+            tint.withValues(alpha: 0.1), // themed caustic light
             const Color(0x00FFFFFF),
           ],
         ).createShader(rect),
     );
 
-    // ── Top specular highlight: bright white fading down ──────────────────
+    // ── Top specular highlight ──────────────────
     final specH = size.height * 0.52;
     canvas.drawRRect(
       RRect.fromRectAndCorners(
@@ -274,7 +275,7 @@ class _LiquidGlassPainter extends CustomPainter {
         ).createShader(Rect.fromLTWH(0, 0, size.width, specH)),
     );
 
-    // ── Rim: sweep gradient stroke (brighter at top-left) ─────────────────
+    // ── Rim ─────────────────
     canvas.drawRRect(
       rrect,
       Paint()
@@ -294,7 +295,7 @@ class _LiquidGlassPainter extends CustomPainter {
         ).createShader(rect),
     );
 
-    // ── Inner rim: very subtle second highlight just inside ────────────────
+    // ── Inner rim ────────────────
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         rect.deflate(1.0),
@@ -327,7 +328,7 @@ class _LiquidGlassPainter extends CustomPainter {
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.55)),
     );
 
-    // ── Warm bottom glow ───────────────────────────────────────────────────
+    // ── Themed bottom glow ───────────────────────────────────────────────────
     canvas.drawRRect(
       rrect,
       Paint()
@@ -335,8 +336,8 @@ class _LiquidGlassPainter extends CustomPainter {
           center: const Alignment(0.0, 1.2),
           radius: 0.9,
           colors: [
-            const Color(0x20F2AFC4), // soft pink warmth
-            const Color(0x00F2AFC4),
+            tint.withValues(alpha: 0.15), // soft themed warmth
+            tint.withValues(alpha: 0.0),
           ],
         ).createShader(rect),
     );
@@ -352,7 +353,7 @@ class _LiquidGlassPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_LiquidGlassPainter old) => old.isIOS != isIOS;
+  bool shouldRepaint(_LiquidGlassPainter old) => old.isIOS != isIOS || old.tint != tint;
 }
 
 class _NavBubble extends StatelessWidget {
@@ -370,7 +371,7 @@ class _NavBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final subPillColor = isIOS
         ? const Color(0x50FFFFFF)
-        : const Color(0x35D6176E);
+        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.25);
 
     return AnimatedBuilder(
       animation: controller,
@@ -458,8 +459,9 @@ class _NavItemState extends State<_NavItem>
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
     final iconColor =
-        widget.selected ? AppColors.pinkBright : const Color(0x77000000);
+        widget.selected ? Theme.of(context).colorScheme.primary : themeColors.textDark.withValues(alpha: 0.5);
 
     return GestureDetector(
       onTapDown: _onTapDown,
