@@ -107,6 +107,10 @@ class GoalsModel extends ChangeNotifier {
           prefs.getInt('${_prefix}ex${i}_spd') ?? exercises[i].setsPerDay;
       exercises[i].doneToday =
           prefs.getInt('${_prefix}ex${i}_done') ?? exercises[i].doneToday;
+      final tt = prefs.getInt('${_prefix}ex${i}_tremor');
+      if (tt != null) exercises[i].tremorThreshold = tt / 1000.0;
+      final st = prefs.getInt('${_prefix}ex${i}_swing');
+      if (st != null) exercises[i].swingThreshold = st / 10.0;
     }
     sessionSets =
         prefs.getInt('${_prefix}session_sets') ?? sessionSets;
