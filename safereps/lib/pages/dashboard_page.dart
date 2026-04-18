@@ -88,9 +88,7 @@ class _DashboardPageState extends State<DashboardPage>
             Row(
               children: [
                 Expanded(
-                  child: _SafetyCard(
-                    title: 'Warm Up',
-                    icon: Icons.self_improvement_rounded,
+                  child: _WarmupCard(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   ),
                 ),
@@ -1074,6 +1072,312 @@ class _PillBar extends StatelessWidget {
   }
 }
 
+// ── Warmup carousel card ─────────────────────────────────────────────────────
+
+class _WarmupCard extends StatelessWidget {
+  const _WarmupCard({required this.color});
+  final Color color;
+
+  static const List<_WarmupSlide> _slides = [
+    _WarmupSlide(
+      asset: '../assets/Warmup/arm circling wireframe.png',
+      label: 'Arm Circles',
+      hint: 'Roll your arms forward and back to loosen the shoulder joint.',
+    ),
+    _WarmupSlide(
+      asset: '../assets/Warmup/generic chest stretch.png',
+      label: 'Chest Stretch',
+      hint: 'Open your chest and retract your shoulder blades.',
+    ),
+    _WarmupSlide(
+      asset: '../assets/Warmup/push up wireframe demo.png',
+      label: 'Push-Up Warm-Up',
+      hint: 'Activate your chest, triceps, and core before lifting.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    return GestureDetector(
+      onTap: () => _showCarousel(context),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        tint: color.withAlpha(60),
+        child: Column(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.self_improvement_rounded,
+                  color: themeColors.textDark, size: 22),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Warm Up',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: themeColors.textDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap to learn',
+              style: TextStyle(color: themeColors.textLight, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCarousel(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => _WarmupCarouselDialog(slides: _slides),
+    );
+  }
+}
+
+class _WarmupSlide {
+  const _WarmupSlide({
+    required this.asset,
+    required this.label,
+    required this.hint,
+  });
+  final String asset;
+  final String label;
+  final String hint;
+}
+
+class _WarmupCarouselDialog extends StatefulWidget {
+  const _WarmupCarouselDialog({required this.slides});
+  final List<_WarmupSlide> slides;
+
+  @override
+  State<_WarmupCarouselDialog> createState() => _WarmupCarouselDialogState();
+}
+
+class _WarmupCarouselDialogState extends State<_WarmupCarouselDialog>
+    with SingleTickerProviderStateMixin {
+  int _index = 0;
+  late final AnimationController _fadeCtrl;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      value: 1,
+    );
+    _fadeAnim = _fadeCtrl;
+  }
+
+  @override
+  void dispose() {
+    _fadeCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _go(int delta) async {
+    await _fadeCtrl.reverse();
+    if (!mounted) return;
+    setState(() {
+      _index =
+          (_index + delta + widget.slides.length) % widget.slides.length;
+    });
+    _fadeCtrl.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    final slide = widget.slides[_index];
+    final total = widget.slides.length;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: GlassCard(
+        borderRadius: 24,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        tint: primary.withValues(alpha: 0.08),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Header ──────────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.self_improvement_rounded,
+                      color: primary, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Warm Up',
+                  style: TextStyle(
+                    color: themeColors.textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.close_rounded,
+                      color: themeColors.textLight, size: 22),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Image with arrows ────────────────────────────────────
+            Row(
+              children: [
+                // Left arrow
+                _ArrowBtn(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  onTap: () => _go(-1),
+                  primary: primary,
+                ),
+                const SizedBox(width: 8),
+
+                // Image
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _fadeAnim,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.asset(
+                          slide.asset,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, _) => Container(
+                            color: primary.withValues(alpha: 0.1),
+                            child: Icon(Icons.image_not_supported_outlined,
+                                color: primary.withValues(alpha: 0.4),
+                                size: 48),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+                // Right arrow
+                _ArrowBtn(
+                  icon: Icons.arrow_forward_ios_rounded,
+                  onTap: () => _go(1),
+                  primary: primary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Label ───────────────────────────────────────────────
+            FadeTransition(
+              opacity: _fadeAnim,
+              child: Column(
+                children: [
+                  Text(
+                    slide.label,
+                    style: TextStyle(
+                      color: themeColors.textDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    slide.hint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: themeColors.textMid,
+                        fontSize: 12,
+                        height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Dot indicators ───────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(total, (i) {
+                final active = i == _index;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: active ? 20 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? primary
+                        : primary.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArrowBtn extends StatelessWidget {
+  const _ArrowBtn({
+    required this.icon,
+    required this.onTap,
+    required this.primary,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: primary.withValues(alpha: 0.25),
+            width: 1.2,
+          ),
+        ),
+        child: Icon(icon, color: primary, size: 18),
+      ),
+    );
+  }
+}
+
+// ── Proper Form safety card (generic) ────────────────────────────────────────
+
 class _SafetyCard extends StatelessWidget {
   const _SafetyCard({
     required this.title,
@@ -1154,7 +1458,8 @@ class _SafetyCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Tutorial content coming soon.\n\nThis section will guide you through safe exercise practices tailored to each movement.',
-                style: TextStyle(color: themeColors.textMid, fontSize: 13, height: 1.5),
+                style: TextStyle(
+                    color: themeColors.textMid, fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 20),
               Align(
