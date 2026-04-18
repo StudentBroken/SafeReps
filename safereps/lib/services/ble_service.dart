@@ -329,7 +329,9 @@ class BleService extends ChangeNotifier {
 
   void _cancelReconnect() {
     _reconnectCancelled = true;
-    _sleepCompleter?.complete();
+    if (_sleepCompleter != null && !_sleepCompleter!.isCompleted) {
+      _sleepCompleter!.complete();
+    }
     _sleepCompleter = null;
   }
 

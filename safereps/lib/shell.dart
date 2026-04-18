@@ -38,20 +38,11 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
-  final _goals = GoalsModel();
-  final _ble = BleService();
   late final PageController _pc = PageController();
-
-  @override
-  void initState() {
-    super.initState();
-    _goals.load();
-  }
 
   @override
   void dispose() {
     _pc.dispose();
-    _ble.dispose();
     super.dispose();
   }
 
@@ -69,37 +60,31 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
 
-    return BleScope(
-      ble: _ble,
-      child: GoalsScope(
-        model: _goals,
-        child: Scaffold(
-          extendBody: true,
-          body: Stack(
-            children: [
-              PageView(
-                controller: _pc,
-                onPageChanged: (i) => setState(() => _index = i),
-                children: const [
-                  DashboardPage(),
-                  GoalsPage(),
-                  SettingsPage(),
-                ],
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _FloatingNav(
-                  index: _index,
-                  controller: _pc,
-                  onTap: _onNavTap,
-                  sysBottom: mq.padding.bottom,
-                ),
-              ),
+    return Scaffold(
+      extendBody: true,
+      body: Stack(
+        children: [
+          PageView(
+            controller: _pc,
+            onPageChanged: (i) => setState(() => _index = i),
+            children: const [
+              DashboardPage(),
+              GoalsPage(),
+              SettingsPage(),
             ],
           ),
-        ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _FloatingNav(
+              index: _index,
+              controller: _pc,
+              onTap: _onNavTap,
+              sysBottom: mq.padding.bottom,
+            ),
+          ),
+        ],
       ),
     );
   }
