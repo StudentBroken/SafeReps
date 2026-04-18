@@ -17,6 +17,7 @@ import '../pose/mlkit_pose_estimator.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/skeleton_smoother.dart';
 import '../pose_painter.dart';
+import '../services/ble_service.dart';
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 
@@ -29,8 +30,9 @@ enum _Phase { preview, getReady, active, rest, done }
 // ---------------------------------------------------------------------------
 
 class SessionPage extends StatefulWidget {
-  const SessionPage({super.key, required this.goals});
+  const SessionPage({super.key, required this.goals, this.ble});
   final GoalsModel goals;
+  final BleService? ble;
 
   @override
   State<SessionPage> createState() => _SessionPageState();
@@ -109,6 +111,7 @@ class _SessionPageState extends State<SessionPage>
     _notificationTimer?.cancel();
     _controller?.dispose();
     _estimator?.close();
+    widget.ble?.stopImuStream();
     super.dispose();
   }
 
@@ -330,6 +333,7 @@ class _SessionPageState extends State<SessionPage>
     _repResult = null;
     _repCounter = RepCounter(_currentExercise);
     setState(() => _phase = _Phase.active);
+    widget.ble?.startImuStream();
   }
 
   void _checkSetComplete() {
@@ -352,6 +356,7 @@ class _SessionPageState extends State<SessionPage>
       _setIndex = 0;
       _exerciseIndex++;
       if (_exerciseIndex >= widget.goals.exercises.length) {
+        widget.ble?.stopImuStream();
         setState(() => _phase = _Phase.done);
         return;
       }
@@ -362,6 +367,7 @@ class _SessionPageState extends State<SessionPage>
   }
 
   void _startRest(int seconds) {
+    widget.ble?.stopImuStream();
     _restRemaining = seconds;
     _timer?.cancel();
     setState(() => _phase = _Phase.rest);

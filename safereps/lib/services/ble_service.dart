@@ -80,6 +80,7 @@ class BleService extends ChangeNotifier {
   List<ScanResult>   scanResults     = [];
   BluetoothDevice?   connectedDevice;
   ImuData?           latestData;
+  double?            battVoltage;    // updated from both batt-only and full packets
   String?            statusMessage;
   bool               isStreaming     = false;
   bool               isCalibrating   = false;
@@ -265,7 +266,7 @@ class BleService extends ChangeNotifier {
     await _persistDevice(device);
     connectionState  = BleConnectionState.connected;
     reconnectAttempt = 0;
-    statusMessage    = 'Connected — tap DATA ON to stream';
+    statusMessage    = 'Connected';
     notifyListeners();
     return true;
   }
@@ -280,6 +281,7 @@ class BleService extends ChangeNotifier {
     isStreaming    = false;
     isCalibrating  = false;
     latestData     = null;
+    battVoltage    = null;
     connectedDevice = null;
 
     if (savedDeviceId != null) {
@@ -362,6 +364,10 @@ class BleService extends ChangeNotifier {
           final json = jsonDecode(line) as Map<String, dynamic>;
           if (json.containsKey('yaw')) {
             latestData = ImuData.fromJson(json);
+            if (latestData!.batt > 0) battVoltage = latestData!.batt;
+          } else if (json.containsKey('batt') && !json.containsKey('yaw')) {
+            final v = (json['batt'] as num).toDouble();
+            if (v > 0) battVoltage = v;
           } else if (json.containsKey('status')) {
             final s = json['status'] as String? ?? '';
             statusMessage = s;
@@ -389,7 +395,21 @@ class BleService extends ChangeNotifier {
   Future<void> toggleStream() async {
     isStreaming = !isStreaming;
     notifyListeners();
-    await sendCommand(isStreaming ? 'DATA_ON' : 'DATA_OFF');
+    await sendCommand(isStreaming ? 'DATA_ON' : 'BATT_ONLY');
+  }
+
+  Future<void> startImuStream() async {
+    if (isStreaming) return;
+    isStreaming = true;
+    notifyListeners();
+    await sendCommand('DATA_ON');
+  }
+
+  Future<void> stopImuStream() async {
+    if (!isStreaming) return;
+    isStreaming = false;
+    notifyListeners();
+    await sendCommand('BATT_ONLY');
   }
 
   Future<void> zero() => sendCommand('ZERO');

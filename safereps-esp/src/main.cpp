@@ -65,12 +65,15 @@ float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
 
 // ─── Control flags ───────────────────────────────────────────────────────────
 bool streamData         = false;
+bool battOnly           = false;   // true = connected but not streaming full IMU
 bool calibrateRequested = false;
 
 // ─── Battery ─────────────────────────────────────────────────────────────────
-float         batteryVoltage   = 0;
-unsigned long lastBatteryCheck = 0;
-const unsigned long kBatteryInterval = 5000;
+float         batteryVoltage    = 0;
+unsigned long lastBatteryCheck  = 0;
+unsigned long lastBattOnlySend  = 0;
+const unsigned long kBatteryInterval  = 5000;
+const unsigned long kBattOnlyInterval = 5000;  // 0.2 Hz — minimal BLE traffic
 
 // ─── Send rate ───────────────────────────────────────────────────────────────
 unsigned long lastSendMs = 0;
@@ -143,10 +146,13 @@ void parseCommand(String command) {
     command.trim();
     if (command == "DATA_ON") {
         streamData = true;
+        battOnly   = false;
         bleSend("{\"status\":\"Data stream ON\"}");
-    } else if (command == "DATA_OFF") {
-        streamData = false;
-        bleSend("{\"status\":\"Data stream OFF\"}");
+    } else if (command == "DATA_OFF" || command == "BATT_ONLY") {
+        streamData       = false;
+        battOnly         = true;
+        lastBattOnlySend = 0;   // send battery immediately on next loop tick
+        bleSend("{\"status\":\"Battery-only mode\"}");
     } else if (command == "ZERO") {
         yawOffset   = smoothYaw;
         pitchOffset = smoothPitch;
@@ -227,15 +233,18 @@ void updateBattery() {
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-        deviceConnected = true;
+        deviceConnected  = true;
+        battOnly         = true;
+        streamData       = false;
+        lastBattOnlySend = 0;   // send battery immediately on next loop tick
         // Request 10 s supervision timeout so calibration (~5 s) survives.
-        // Units: min/max interval = 1.25 ms, timeout = 10 ms.
         pServer->updateConnParams(desc->conn_handle, 24, 48, 0, 1000);
         Serial.println("{\"status\":\"BLE client connected\"}");
     }
     void onDisconnect(NimBLEServer*) override {
         deviceConnected = false;
         streamData      = false;
+        battOnly        = false;
         Serial.println("{\"status\":\"BLE client disconnected\"}");
         NimBLEDevice::startAdvertising();
     }
@@ -357,6 +366,18 @@ void loop() {
         mpu.setDMPEnabled(true);
 
         bleSend("{\"status\":\"Calibration complete\"}");
+    }
+
+    // ── Battery-only heartbeat (runs even if DMP is not ready) ──────────────────
+    if (battOnly && deviceConnected) {
+        unsigned long now = millis();
+        if (now - lastBattOnlySend >= kBattOnlyInterval) {
+            lastBattOnlySend = now;
+            updateBattery();
+            char buf[32];
+            snprintf(buf, sizeof(buf), "{\"batt\":%.2f}\n", batteryVoltage);
+            bleSend(buf);
+        }
     }
 
     if (!dmpReady) return;

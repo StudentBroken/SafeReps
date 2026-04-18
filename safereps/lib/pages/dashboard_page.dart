@@ -114,11 +114,12 @@ class _DashboardPageState extends State<DashboardPage>
                 pulseAnim: _pulseAnim,
                 onTap: () {
                   final goals = GoalsScope.of(context);
+                  final ble = BleScope.of(context);
                   Navigator.push(
                     context,
                     PageRouteBuilder(
                       pageBuilder: (ctx, anim, secondary) =>
-                          SessionPage(goals: goals),
+                          SessionPage(goals: goals, ble: ble),
                       transitionsBuilder: (ctx, anim, secondary, child) {
                         final curved = CurvedAnimation(
                           parent: anim,
@@ -187,13 +188,13 @@ class _BlePill extends StatelessWidget {
     final ble = BleScope.of(context);
     final connected = ble.connectionState == BleConnectionState.connected;
     final reconnecting = ble.connectionState == BleConnectionState.reconnecting;
-    final batt = ble.latestData?.batt;
+    final batt = ble.battVoltage;
 
     final Color pillColor;
     final String label;
 
     if (connected) {
-      if (batt != null && batt > 0) {
+      if (batt != null) {
         pillColor = batt >= 3.6 ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
         final warning = batt < 3.6 ? ' !' : '';
         label = '${batt.toStringAsFixed(2)}V$warning';
@@ -413,8 +414,8 @@ class _SheetConnectedBody extends StatelessWidget {
   final BleService ble;
 
   Color get _battColor {
-    final v = ble.latestData?.batt ?? 0;
-    if (v <= 0) return AppColors.textLight;
+    final v = ble.battVoltage;
+    if (v == null) return AppColors.textLight;
     if (v >= 3.6) return const Color(0xFF34C759);
     return const Color(0xFFFF3B30);
   }
@@ -424,8 +425,8 @@ class _SheetConnectedBody extends StatelessWidget {
     final name = ble.connectedDevice?.platformName.isNotEmpty == true
         ? ble.connectedDevice!.platformName
         : ble.savedDeviceName ?? 'Connected';
-    final batt = ble.latestData?.batt;
-    final battFraction = batt != null && batt > 0
+    final batt = ble.battVoltage;
+    final battFraction = batt != null
         ? ((batt - 3.3) / (4.2 - 3.3)).clamp(0.0, 1.0)
         : null;
 
@@ -459,7 +460,7 @@ class _SheetConnectedBody extends StatelessWidget {
                   ),
                 ],
               ),
-              if (batt != null && batt > 0) ...[
+              if (batt != null) ...[
                 const SizedBox(height: 14),
                 Row(
                   children: [
