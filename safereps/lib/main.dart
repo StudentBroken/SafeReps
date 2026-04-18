@@ -1,7 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
-import 'pose_camera_page.dart';
+import 'shell.dart';
+import 'theme.dart';
 
 List<CameraDescription> cameras = const [];
 
@@ -23,14 +24,8 @@ class SafeRepsApp extends StatelessWidget {
     return MaterialApp(
       title: 'SafeReps',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: PoseCameraPage(cameras: cameras),
+      theme: AppTheme.light,
+      home: const MainShell(),
     );
   }
 }

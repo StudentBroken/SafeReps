@@ -59,6 +59,9 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   RepCounter? _repCounter;
   RepResult? _repResult;
 
+  DateTime? _lastFullyInFrameTime;
+  bool _isPoseValid = true;
+
   bool get _supportsPoseDetection =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
@@ -275,9 +278,29 @@ class _PoseCameraPageState extends State<PoseCameraPage>
         _fps = _frameTimes.length;
         _latencyMs = now.difference(frameStart).inMilliseconds;
 
+        // Check if limbs are in frame.
+        if (_skeletons.isNotEmpty) {
+          final isCurrentlyInFrame = _skeletons.first.isFullyInFrame(meta.imageSize);
+          if (isCurrentlyInFrame) {
+            _lastFullyInFrameTime = now;
+            _isPoseValid = true;
+          } else {
+            final lastTime = _lastFullyInFrameTime;
+            if (lastTime != null && now.difference(lastTime) > const Duration(seconds: 1)) {
+              _isPoseValid = false;
+            }
+          }
+        } else {
+          // No skeleton visible at all.
+          final lastTime = _lastFullyInFrameTime;
+          if (lastTime != null && now.difference(lastTime) > const Duration(seconds: 1)) {
+            _isPoseValid = false;
+          }
+        }
+
         final counter = _repCounter;
         final angles = _angles;
-        if (counter != null && angles != null) {
+        if (counter != null && angles != null && _isPoseValid) {
           _repResult = counter.update(angles);
         }
       });
@@ -404,12 +427,41 @@ class _PoseCameraPageState extends State<PoseCameraPage>
                       skeletons: _skeletons,
                       meta: meta,
                       angles: _angles,
+                      isPoseValid: _isPoseValid,
                     ),
                   ),
               ],
             ),
           ),
         ),
+        if (!_isPoseValid && _skeletons.isNotEmpty)
+          Positioned(
+            top: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Keep all limbs in frame!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         Positioned(
           left: 12,
           bottom: 12,

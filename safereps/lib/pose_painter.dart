@@ -7,11 +7,17 @@ import 'analysis/joint_angles.dart';
 import 'pose/skeleton.dart';
 
 class PosePainter extends CustomPainter {
-  PosePainter({required this.skeletons, required this.meta, this.angles});
+  PosePainter({
+    required this.skeletons,
+    required this.meta,
+    this.angles,
+    this.isPoseValid = true,
+  });
 
   final List<Skeleton> skeletons;
   final FrameMeta meta;
   final JointAngles? angles;
+  final bool isPoseValid;
 
   static const _jointRadius = 4.0;
   static const _strokeWidth = 4.0;
@@ -20,14 +26,14 @@ class PosePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final jointPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = Colors.cyanAccent;
+      ..color = isPoseValid ? Colors.cyanAccent : Colors.grey.withOpacity(0.5);
 
     for (final sk in skeletons) {
       for (final (a, b, side) in skeletonBones) {
         final pa = _project(sk[a], size);
         final pb = _project(sk[b], size);
         if (pa == null || pb == null) continue;
-        canvas.drawLine(pa, pb, _bonePaint(side));
+        canvas.drawLine(pa, pb, _bonePaint(side, isPoseValid));
       }
       for (final lm in sk.joints.values) {
         if (lm.visibility < 0.3) continue;
@@ -117,19 +123,25 @@ class PosePainter extends CustomPainter {
     }
   }
 
-  static Paint _bonePaint(bool? side) => Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = _strokeWidth
-    ..strokeCap = StrokeCap.round
-    ..color = switch (side) {
+  static Paint _bonePaint(bool? side, bool isValid) {
+    final color = switch (side) {
       true  => Colors.orangeAccent,
       false => Colors.lightBlueAccent,
       null  => Colors.greenAccent,
     };
+    return Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..color = isValid ? color : Colors.grey.withOpacity(0.3);
+  }
 
   @override
   bool shouldRepaint(covariant PosePainter old) =>
-      old.skeletons != skeletons || old.meta != meta || old.angles != angles;
+      old.skeletons != skeletons ||
+      old.meta != meta ||
+      old.angles != angles ||
+      old.isPoseValid != isPoseValid;
 }
 
 /// Thin value object so [PosePainter] has no ML Kit dependency.

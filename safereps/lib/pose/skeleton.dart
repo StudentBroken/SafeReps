@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Size;
 
 /// Platform-agnostic rotation that mirrors InputImageRotation values,
 /// so PosePainter doesn't depend on any ML/pose package directly.
@@ -52,6 +53,34 @@ class Skeleton {
   final Map<SkeletonJoint, SkeletonLandmark> joints;
 
   SkeletonLandmark? operator [](SkeletonJoint j) => joints[j];
+
+  /// Returns true if all major limb joints (shoulders, elbows, wrists, hips,
+  /// knees, ankles) are visible (> 0.5 confidence) and within [imageSize].
+  bool isFullyInFrame(Size imageSize) {
+    const criticalJoints = [
+      SkeletonJoint.leftShoulder,
+      SkeletonJoint.rightShoulder,
+      SkeletonJoint.leftElbow,
+      SkeletonJoint.rightElbow,
+      SkeletonJoint.leftWrist,
+      SkeletonJoint.rightWrist,
+      SkeletonJoint.leftHip,
+      SkeletonJoint.rightHip,
+      SkeletonJoint.leftKnee,
+      SkeletonJoint.rightKnee,
+      SkeletonJoint.leftAnkle,
+      SkeletonJoint.rightAnkle,
+    ];
+
+    for (final j in criticalJoints) {
+      final lm = joints[j];
+      if (lm == null || lm.visibility < 0.5) return false;
+      if (lm.x < 0 || lm.x > imageSize.width || lm.y < 0 || lm.y > imageSize.height) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 // Bones to draw, with a flag indicating whether they are on the left side.
