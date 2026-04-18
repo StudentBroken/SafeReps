@@ -39,15 +39,16 @@ class JointAngles {
   }
 
   String toClipboardString() {
+    String f(double? v) => v?.toStringAsFixed(0) ?? '?';
     final parts = [
-      if (leftKnee != null) 'lk:${leftKnee!.toStringAsFixed(0)}',
-      if (rightKnee != null) 'rk:${rightKnee!.toStringAsFixed(0)}',
-      if (leftHip != null) 'lh:${leftHip!.toStringAsFixed(0)}',
-      if (rightHip != null) 'rh:${rightHip!.toStringAsFixed(0)}',
-      if (leftElbow != null) 'le:${leftElbow!.toStringAsFixed(0)}',
-      if (rightElbow != null) 're:${rightElbow!.toStringAsFixed(0)}',
-      if (leftShoulder != null) 'ls:${leftShoulder!.toStringAsFixed(0)}',
-      if (rightShoulder != null) 'rs:${rightShoulder!.toStringAsFixed(0)}',
+      'lk:${f(leftKnee)}',
+      'rk:${f(rightKnee)}',
+      'lh:${f(leftHip)}',
+      'rh:${f(rightHip)}',
+      'le:${f(leftElbow)}',
+      're:${f(rightElbow)}',
+      'ls:${f(leftShoulder)}',
+      'rs:${f(rightShoulder)}',
     ];
     return 'pose_angles: ${parts.join(',')} deg';
   }
@@ -72,7 +73,8 @@ double? _angle(Skeleton sk, SkeletonJoint a, SkeletonJoint b, SkeletonJoint c) {
   final lb = sk[b];
   final lc = sk[c];
   if (la == null || lb == null || lc == null) return null;
-  if (la.visibility < 0.3 || lb.visibility < 0.3 || lc.visibility < 0.3) {
+  // Lowered threshold to 0.1 to be more forgiving in the debug viewer.
+  if (la.visibility < 0.1 || lb.visibility < 0.1 || lc.visibility < 0.1) {
     return null;
   }
 
