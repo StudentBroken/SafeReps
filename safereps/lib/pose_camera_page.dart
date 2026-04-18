@@ -442,7 +442,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.8),
+                color: Colors.red.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Row(
