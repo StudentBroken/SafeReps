@@ -17,6 +17,7 @@ import '../analysis/rep_form_tracker.dart';
 import '../main.dart' show cameras;
 import '../models/coach_settings.dart';
 import '../models/goals_model.dart';
+import '../models/history_model.dart';
 import '../pose/mlkit_pose_estimator.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/skeleton_smoother.dart';
@@ -942,7 +943,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   void _startGetReady() {
     _getReadyCountdown = 3;
     _timer?.cancel();
-    setState(() => _phase = _Phase.getReady);
+    setState(() {
+      _phase = _Phase.getReady;
+      _skeletons = const [];
+      _angles = null;
+    });
     // Fire a session-start cue
     _coach.playMandatory(CueCategory.start);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -1001,7 +1006,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         widget.ble?.stopImuStream();
         // Session complete
         _coach.playMandatory(CueCategory.finishCongrats);
-        setState(() => _phase = _Phase.done);
+        setState(() {
+          _phase = _Phase.done;
+          _skeletons = const [];
+          _angles = null;
+        });
         return;
       }
       // Exercise complete (not final)
@@ -1018,7 +1027,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     widget.ble?.stopImuStream();
     _restRemaining = seconds;
     _timer?.cancel();
-    setState(() => _phase = _Phase.rest);
+    setState(() {
+      _phase = _Phase.rest;
+      _skeletons = const [];
+      _angles = null;
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -1073,7 +1086,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                       fit: StackFit.expand,
                       children: [
                         CameraPreview(controller),
-                        if (meta != null)
+                        if (meta != null && _isPoseValid)
                           CustomPaint(
                             painter: PosePainter(
                               skeletons: _skeletons,
@@ -2256,7 +2269,28 @@ class _DoneOverlayState extends State<_DoneOverlay>
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: widget.onFinish,
+                      onPressed: () {
+                        // Save session to history
+                        final history = HistoryScope.of(context);
+                        final sessionEntry = SessionHistoryEntry(
+                          timestamp: DateTime.now(),
+                          exercises: widget.summaries
+                              .where((s) => s.hasData)
+                              .map((s) => ExerciseHistoryEntry(
+                                    name: s.name,
+                                    repsCompleted: s.repResults.length,
+                                    avgQuality: s.avgQuality,
+                                    repQualities: s.repResults.map((r) => r.quality).toList(),
+                                    issues: s.issueAspects.map((a) => a.$1).toList(),
+                                    goods: s.goodAspects.map((a) => a.$1).toList(),
+                                  ))
+                              .toList(),
+                        );
+                        if (sessionEntry.exercises.isNotEmpty) {
+                          history.addSession(sessionEntry);
+                        }
+                        widget.onFinish();
+                      },
                       child: const Text('Finish'),
                     ),
                   ),

@@ -5,6 +5,7 @@ import '../models/goals_model.dart';
 import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
+import 'activity_log_page.dart';
 
 // Per-exercise accent colors — vivid, distinct from each other.
 Color _exerciseAccent(String name) {
@@ -45,13 +46,24 @@ class _GoalsPageState extends State<GoalsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Text('Goals', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 2),
-            Text('Configure your session targets.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppTheme.colors(context).textLight)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Goals', style: Theme.of(context).textTheme.headlineMedium),
+                    const SizedBox(height: 2),
+                    Text('Configure your session targets.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: AppTheme.colors(context).textLight)),
+                  ],
+                ),
+                _LogBtn(),
+              ],
+            ),
             const SizedBox(height: 20),
 
             // Session pill
@@ -671,6 +683,30 @@ class _CardRow extends StatelessWidget {
         ),
         _StepBtn(icon: Icons.add_rounded, onTap: onInc),
       ],
+    );
+  }
+}
+
+class _LogBtn extends StatelessWidget {
+  const _LogBtn();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColors = AppTheme.colors(context);
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      borderRadius: 12,
+      tint: themeColors.accent.withValues(alpha: 0.1),
+      child: IconButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ActivityLogPage()),
+          );
+        },
+        icon: Icon(Icons.history_rounded, color: themeColors.textDark),
+        tooltip: 'Activity Log',
+      ),
     );
   }
 }
