@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math' show pi;
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -989,40 +990,72 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                 final settings = CoachSettingsScope.of(context);
                 final caption = _coach.lastCaption;
                 final show = settings.captions && caption != null && isActive;
+                final primary = Theme.of(context).colorScheme.primary;
                 return Positioned(
-                  bottom: 90,
-                  left: 24,
-                  right: 24,
+                  bottom: 104,
+                  left: 20,
+                  right: 20,
                   child: AnimatedOpacity(
                     opacity: show ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 400),
+                    duration: const Duration(milliseconds: 350),
                     child: AnimatedSlide(
-                      offset: show ? Offset.zero : const Offset(0, 0.4),
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            caption ?? '',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              height: 1.35,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 6,
-                                  color: Colors.black54,
-                                  offset: Offset(0, 1),
-                                )
-                              ],
+                      offset: show ? Offset.zero : const Offset(0, 0.3),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                width: 1,
+                              ),
+                            ),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Left accent bar
+                                  Container(
+                                    width: 3,
+                                    decoration: BoxDecoration(
+                                      color: primary,
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(14),
+                                        bottomLeft: Radius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 10),
+                                      child: Text(
+                                        caption ?? '',
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.3,
+                                          letterSpacing: 0.1,
+                                          shadows: [
+                                            Shadow(
+                                              blurRadius: 8,
+                                              color: Colors.black.withValues(alpha: 0.6),
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),

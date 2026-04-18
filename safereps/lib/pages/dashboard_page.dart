@@ -1035,6 +1035,12 @@ class _PillBar extends StatelessWidget {
     final themeColors = AppTheme.colors(context);
     final primary = Theme.of(context).colorScheme.primary;
 
+    // How many full sets have been completed
+    final completedSets = exercise.repsPerSet == 0
+        ? 0
+        : (exercise.doneToday / exercise.repsPerSet).floor()
+            .clamp(0, exercise.setsPerDay);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1049,12 +1055,42 @@ class _PillBar extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Text(
-              '${exercise.doneToday} / ${exercise.totalGoal}',
-              style: TextStyle(
-                color: themeColors.textLight,
-                fontSize: 11,
-              ),
+            Row(
+              children: [
+                // Completed sets pill
+                Text(
+                  '$completedSets',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  ' / ${exercise.setsPerDay} sets',
+                  style: TextStyle(
+                    color: themeColors.textLight,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${exercise.setsPerDay}×${exercise.repsPerSet}',
+                    style: TextStyle(
+                      color: primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1063,8 +1099,8 @@ class _PillBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(100),
           child: LinearProgressIndicator(
             value: exercise.fraction,
-            minHeight: 10,
-            backgroundColor: primary.withValues(alpha: 0.15),
+            minHeight: 8,
+            backgroundColor: primary.withValues(alpha: 0.12),
             valueColor: AlwaysStoppedAnimation<Color>(primary),
           ),
         ),
@@ -1081,17 +1117,17 @@ class _WarmupCard extends StatelessWidget {
 
   static const List<_WarmupSlide> _slides = [
     _WarmupSlide(
-      asset: '../assets/Warmup/arm circling wireframe.png',
+      asset: 'assets/Warmup/arm circling wireframe.png',
       label: 'Arm Circles',
       hint: 'Roll your arms forward and back to loosen the shoulder joint.',
     ),
     _WarmupSlide(
-      asset: '../assets/Warmup/generic chest stretch.png',
+      asset: 'assets/Warmup/generic chest stretch.png',
       label: 'Chest Stretch',
       hint: 'Open your chest and retract your shoulder blades.',
     ),
     _WarmupSlide(
-      asset: '../assets/Warmup/push up wireframe demo.png',
+      asset: 'assets/Warmup/push up wireframe demo.png',
       label: 'Push-Up Warm-Up',
       hint: 'Activate your chest, triceps, and core before lifting.',
     ),
@@ -1398,17 +1434,17 @@ const List<_ProperFormExercise> _properFormExercises = [
   _ProperFormExercise(
     name: 'Lateral Raises',
     imagePath:
-        '../assets/Demonstration videos and images/Lateral raises no background.png',
+        'assets/Demonstration videos and images/Lateral raises no background.png',
     videoPath:
-        '../assets/Demonstration videos and images/lateral raises.mp4',
+        'assets/Demonstration videos and images/lateral raises.mp4',
     icon: Icons.accessibility_new_rounded,
   ),
   _ProperFormExercise(
     name: 'Bicep Curls',
     imagePath:
-        '../assets/Demonstration videos and images/Bicep Curls no background.png',
+        'assets/Demonstration videos and images/Bicep Curls no background.png',
     videoPath:
-        '../assets/Demonstration videos and images/bicep curls.mp4',
+        'assets/Demonstration videos and images/bicep curls.mp4',
     icon: Icons.fitness_center_rounded,
   ),
 ];

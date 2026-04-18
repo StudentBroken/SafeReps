@@ -398,7 +398,7 @@ class _AppIconBadge extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(4),
       child: Image.asset(
-        '../assets/SafeReps_Logo.png',
+        'assets/SafeReps_Logo.png',
         fit: BoxFit.contain,
       ),
     );
