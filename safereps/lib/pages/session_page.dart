@@ -961,7 +961,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _repMaxAngle = double.negativeInfinity;
     _pendingRomCue = null;
     _lastRepsMotivFired = false;
-    _lastCueFiredAt = null;
+    _lastCueFiredAt.clear();
     if (_bleConnected) _bleWasConnected = true;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();
@@ -2256,7 +2256,7 @@ class _DoneOverlayState extends State<_DoneOverlay>
   }
 }
 
-class _ExerciseReportCard extends StatelessWidget {
+class _ExerciseReportCard extends StatefulWidget {
   const _ExerciseReportCard({
     required this.summary,
     required this.showFormData,
@@ -2266,12 +2266,19 @@ class _ExerciseReportCard extends StatelessWidget {
   final bool showFormData;
 
   @override
+  State<_ExerciseReportCard> createState() => _ExerciseReportCardState();
+}
+
+class _ExerciseReportCardState extends State<_ExerciseReportCard> {
+  bool _showAdvanced = false;
+
+  @override
   Widget build(BuildContext context) {
-    final hasForm = showFormData && summary.hasData;
-    final q = summary.avgQuality;
-    final recs = summary.recommendations;
-    final goods = hasForm ? summary.goodAspects : <(String, IconData)>[];
-    final issues = hasForm ? summary.issueAspects : <(String, IconData)>[];
+    final hasForm = widget.showFormData && widget.summary.hasData;
+    final q = widget.summary.avgQuality;
+    final recs = widget.summary.recommendations;
+    final goods = hasForm ? widget.summary.goodAspects : <(String, IconData)>[];
+    final issues = hasForm ? widget.summary.issueAspects : <(String, IconData)>[];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -2284,7 +2291,7 @@ class _ExerciseReportCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    summary.name,
+                    widget.summary.name,
                     style: const TextStyle(
                       color: AppColors.textDark,
                       fontSize: 15,
@@ -2313,7 +2320,7 @@ class _ExerciseReportCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    '${summary.repResults.length} reps',
+                    '${widget.summary.repResults.length} reps',
                     style: const TextStyle(
                         color: AppColors.textMid, fontSize: 13),
                   ),
@@ -2340,35 +2347,136 @@ class _ExerciseReportCard extends StatelessWidget {
               ),
             ],
 
-            // Per-rep quality dots
-            if (hasForm && summary.repResults.length > 1) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: summary.repResults.asMap().entries.map((e) {
-                  final repQ = e.value.quality;
-                  return Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _qualityColor(repQ).withValues(alpha: 0.15),
-                      border: Border.all(
-                          color: _qualityColor(repQ).withValues(alpha: 0.6)),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${repQ.round()}',
-                        style: TextStyle(
-                          color: _qualityColor(repQ),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                        ),
+            // Advanced toggle + per-rep breakdown
+            if (hasForm && widget.summary.repResults.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Advanced',
+                      style: TextStyle(
+                        color: AppColors.textLight,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  );
-                }).toList(),
+                    const SizedBox(width: 2),
+                    AnimatedRotation(
+                      turns: _showAdvanced ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: _showAdvanced
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'PER REP',
+                              style: TextStyle(
+                                color: AppColors.textLight,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...widget.summary.repResults.asMap().entries.map((e) {
+                              final idx = e.key;
+                              final rep = e.value;
+                              final repQ = rep.quality;
+                              final flags = <IconData>[
+                                if (rep.sustainedTremor) Icons.vibration_rounded,
+                                if (rep.sustainedSwing) Icons.speed_rounded,
+                                if (rep.yawViolated) Icons.rotate_left_rounded,
+                                if (rep.rollViolated) Icons.rotate_right_rounded,
+                                if (rep.pitchViolated) Icons.flip_rounded,
+                              ];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    // Rep number
+                                    SizedBox(
+                                      width: 38,
+                                      child: Text(
+                                        'Rep ${idx + 1}',
+                                        style: const TextStyle(
+                                          color: AppColors.textLight,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    // Quality dot
+                                    Container(
+                                      width: 32,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: _qualityColor(repQ)
+                                            .withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: _qualityColor(repQ)
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${repQ.round()}',
+                                          style: TextStyle(
+                                            color: _qualityColor(repQ),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Issue flags
+                                    if (flags.isEmpty)
+                                      const Text(
+                                        'Clean',
+                                        style: TextStyle(
+                                          color: Color(0xFF2E7D32),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      )
+                                    else
+                                      Wrap(
+                                        spacing: 4,
+                                        children: flags
+                                            .map((icon) => Icon(
+                                                  icon,
+                                                  size: 13,
+                                                  color: const Color(0xFFBF360C),
+                                                ))
+                                            .toList(),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
 
