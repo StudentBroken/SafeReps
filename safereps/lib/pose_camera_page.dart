@@ -8,6 +8,9 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart'
     show InputImageRotation, InputImageRotationValue;
 import 'package:permission_handler/permission_handler.dart';
 
+import 'analysis/exercise.dart';
+import 'analysis/joint_angles.dart';
+import 'analysis/rep_counter.dart';
 import 'pose/mlkit_pose_estimator.dart';
 import 'pose/pose_estimator.dart';
 import 'pose_painter.dart';
@@ -36,8 +39,19 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   bool _busy = false;
   bool _initializing = false;
   String? _error;
-  List<Skeleton> _skeletons = const [];
+
+  List<SkeletonWithAngles> _results = const [];
   FrameMeta? _frameMeta;
+
+  // Exercise tracking.
+  Exercise _exercise = squat;
+  late RepCounter _repCounter = RepCounter(_exercise);
+  RepResult? _lastRepResult;
+
+  // FPS tracking.
+  final List<DateTime> _frameTimes = [];
+  int _fps = 0;
+  int _latencyMs = 0;
 
   bool get _supportsPoseDetection =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -80,13 +94,11 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       setState(() => _error = 'No cameras available on this device.');
       return;
     }
-
     final status = await Permission.camera.request();
     if (!status.isGranted) {
       setState(() => _error = 'Camera permission denied.');
       return;
     }
-
     final estimator = MlKitPoseEstimator();
     await estimator.initialize();
     _estimator = estimator;
@@ -106,7 +118,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       final old = _controller;
       _controller = null;
       _busy = false;
-      _skeletons = const [];
+      _results = const [];
       _frameMeta = null;
       if (mounted) setState(() {});
 
@@ -152,6 +164,14 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     await _startCamera();
   }
 
+  void _selectExercise(Exercise ex) {
+    setState(() {
+      _exercise = ex;
+      _repCounter = RepCounter(ex);
+      _lastRepResult = null;
+    });
+  }
+
   Future<void> _onCameraImage(CameraImage image) async {
     final controller = _controller;
     final estimator = _estimator;
@@ -161,17 +181,37 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     if (meta == null) return;
 
     _busy = true;
+    final frameStart = DateTime.now();
     try {
       final skeletons =
           await estimator.processFrame(image, controller.description, meta);
+
+      final results = skeletons.map((sk) {
+        final angles = computeJointAngles(sk);
+        return SkeletonWithAngles(sk, angles);
+      }).toList();
+
+      RepResult? repResult;
+      if (results.isNotEmpty) {
+        repResult = _repCounter.update(results.first.angles);
+      }
+
+      final now = DateTime.now();
+      _frameTimes.add(now);
+      _frameTimes.removeWhere(
+          (t) => now.difference(t) > const Duration(seconds: 1));
+
       if (!mounted) return;
       setState(() {
-        _skeletons = skeletons;
+        _results = results;
         _frameMeta = FrameMeta(
-          imageSize:     meta.imageSize,
-          rotation:      meta.rotation,
+          imageSize: meta.imageSize,
+          rotation: meta.rotation,
           lensDirection: meta.lensDirection,
         );
+        _lastRepResult = repResult;
+        _fps = _frameTimes.length;
+        _latencyMs = now.difference(frameStart).inMilliseconds;
       });
     } catch (_) {
       // Drop frame.
@@ -194,18 +234,16 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       mlRot = InputImageRotationValue.fromRawValue(comp);
     }
     if (mlRot == null) return null;
-    final rotation = _toFrameRotation(mlRot);
     return FrameMetadata(
       imageSize: Size(image.width.toDouble(), image.height.toDouble()),
-      rotation: rotation,
+      rotation: _toFrameRotation(mlRot),
       lensDirection: camera.lensDirection,
     );
   }
 
-  static FrameRotation _toFrameRotation(InputImageRotation r) =>
-      switch (r) {
-        InputImageRotation.rotation0deg   => FrameRotation.deg0,
-        InputImageRotation.rotation90deg  => FrameRotation.deg90,
+  static FrameRotation _toFrameRotation(InputImageRotation r) => switch (r) {
+        InputImageRotation.rotation0deg => FrameRotation.deg0,
+        InputImageRotation.rotation90deg => FrameRotation.deg90,
         InputImageRotation.rotation180deg => FrameRotation.deg180,
         InputImageRotation.rotation270deg => FrameRotation.deg270,
       };
@@ -217,6 +255,16 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       appBar: AppBar(
         title: const Text('SafeReps · Pose Debug'),
         actions: [
+          // Exercise picker.
+          PopupMenuButton<Exercise>(
+            icon: const Icon(Icons.fitness_center),
+            tooltip: 'Select exercise',
+            initialValue: _exercise,
+            onSelected: _selectExercise,
+            itemBuilder: (_) => builtInExercises
+                .map((e) => PopupMenuItem(value: e, child: Text(e.name)))
+                .toList(),
+          ),
           if (widget.cameras.length > 1)
             IconButton(
               icon: const Icon(Icons.cameraswitch),
@@ -247,46 +295,214 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return const Center(child: CircularProgressIndicator());
     }
     final meta = _frameMeta;
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 1 / controller.value.aspectRatio,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CameraPreview(controller),
-            if (meta != null)
-              CustomPaint(
-                painter: PosePainter(skeletons: _skeletons, meta: meta),
-              ),
-            Positioned(
-              left: 12,
-              bottom: 12,
-              child: _PoseHud(count: _skeletons.length),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: AspectRatio(
+            aspectRatio: 1 / controller.value.aspectRatio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CameraPreview(controller),
+                if (meta != null)
+                  CustomPaint(
+                    painter: PosePainter(
+                      skeletons: _results.map((r) => r.skeleton).toList(),
+                      meta: meta,
+                    ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
+        // Overlay HUD panels.
+        Positioned(
+          left: 12,
+          top: 12,
+          child: _FpsHud(fps: _fps, latencyMs: _latencyMs),
+        ),
+        Positioned(
+          right: 12,
+          top: 12,
+          child: _ExerciseHud(
+            exercise: _exercise,
+            repResult: _lastRepResult,
+            onReset: () => setState(() {
+              _repCounter.reset();
+              _lastRepResult = null;
+            }),
+          ),
+        ),
+        if (_results.isNotEmpty)
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: _AngleHud(angles: _results.first.angles),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Data carrier ──────────────────────────────────────────────────────────────
+
+class SkeletonWithAngles {
+  const SkeletonWithAngles(this.skeleton, this.angles);
+  final Skeleton skeleton;
+  final JointAngles angles;
+}
+
+// ── HUD widgets ───────────────────────────────────────────────────────────────
+
+class _FpsHud extends StatelessWidget {
+  const _FpsHud({required this.fps, required this.latencyMs});
+
+  final int fps;
+  final int latencyMs;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HudCard(
+      child: Text(
+        '$fps fps  ·  ${latencyMs}ms',
+        style: const TextStyle(color: Colors.white70, fontSize: 11,
+            fontFeatures: [FontFeature.tabularFigures()]),
       ),
     );
   }
 }
 
-class _PoseHud extends StatelessWidget {
-  const _PoseHud({required this.count});
+class _ExerciseHud extends StatelessWidget {
+  const _ExerciseHud({
+    required this.exercise,
+    required this.repResult,
+    required this.onReset,
+  });
 
-  final int count;
+  final Exercise exercise;
+  final RepResult? repResult;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final reps = repResult?.totalReps ?? 0;
+    final phase = repResult?.phase ?? RepPhase.idle;
+    return GestureDetector(
+      onLongPress: onReset,
+      child: _HudCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(exercise.name,
+                style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            Text(
+              '$reps',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            Text(
+              _phaseLabel(phase),
+              style: TextStyle(
+                color: _phaseColor(phase),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text('hold to reset',
+                style: TextStyle(color: Colors.white30, fontSize: 9)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _phaseLabel(RepPhase p) => switch (p) {
+        RepPhase.idle => 'get in position',
+        RepPhase.top => 'ready',
+        RepPhase.descending => '▼ down',
+        RepPhase.bottom => '● bottom',
+        RepPhase.ascending => '▲ up',
+      };
+
+  static Color _phaseColor(RepPhase p) => switch (p) {
+        RepPhase.idle => Colors.white38,
+        RepPhase.top => Colors.greenAccent,
+        RepPhase.descending => Colors.orangeAccent,
+        RepPhase.bottom => Colors.cyanAccent,
+        RepPhase.ascending => Colors.lightGreenAccent,
+      };
+}
+
+class _AngleHud extends StatelessWidget {
+  const _AngleHud({required this.angles});
+
+  final JointAngles angles;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HudCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _angleRow('Knee', angles.avgKnee),
+          _angleRow('Hip', angles.avgHip),
+          _angleRow('Elbow', angles.avgElbow),
+          _angleRow('Shoulder', angles.avgShoulder),
+        ],
+      ),
+    );
+  }
+
+  static Widget _angleRow(String label, double? deg) {
+    final text = deg != null ? '${deg.toStringAsFixed(0)}°' : '--';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(label,
+                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          ),
+          SizedBox(
+            width: 36,
+            child: Text(text,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                )),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HudCard extends StatelessWidget {
+  const _HudCard({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black54,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        count == 0 ? 'No pose detected' : 'Tracking $count pose(s)',
-        style: const TextStyle(color: Colors.white, fontSize: 12),
-      ),
+      child: child,
     );
   }
 }
