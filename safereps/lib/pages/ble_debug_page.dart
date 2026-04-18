@@ -34,9 +34,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
           appBar: AppBar(
             backgroundColor: AppColors.background,
             elevation: 0,
-            title: const Text('BLE Debug',
-                style: TextStyle(
-                    color: AppColors.textDark, fontWeight: FontWeight.w700)),
+            title: null,
             iconTheme: const IconThemeData(color: AppColors.textDark),
             actions: [
               if (connected)

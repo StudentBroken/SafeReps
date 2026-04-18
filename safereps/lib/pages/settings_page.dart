@@ -20,9 +20,7 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Settings',
-                style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
             _SectionLabel('Progress'),
             const SizedBox(height: 8),
             GlassCard(

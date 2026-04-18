@@ -30,15 +30,7 @@ class _GoalsPageState extends State<GoalsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Text('Goals', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 2),
-            Text('Set your daily targets.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.textLight)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Session pill
             _SessionPill(model: model),

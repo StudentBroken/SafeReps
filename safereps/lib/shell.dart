@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import 'models/goals_model.dart';
 import 'pages/dashboard_page.dart';
@@ -37,11 +38,28 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
   final _goals = GoalsModel();
+  late final PageController _pc = PageController();
 
   @override
   void initState() {
     super.initState();
     _goals.load();
+  }
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  void _onNavTap(int i) {
+    if (i == _index) return;
+    setState(() => _index = i);
+    _pc.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -55,8 +73,9 @@ class _MainShellState extends State<MainShell> {
         extendBody: true,
         body: Stack(
           children: [
-            IndexedStack(
-              index: _index,
+            PageView(
+              controller: _pc,
+              onPageChanged: (i) => setState(() => _index = i),
               children: const [
                 DashboardPage(),
                 GoalsPage(),
@@ -69,7 +88,7 @@ class _MainShellState extends State<MainShell> {
               right: 0,
               child: _FloatingNav(
                 index: _index,
-                onTap: (i) => setState(() => _index = i),
+                onTap: _onNavTap,
                 sysBottom: mq.padding.bottom,
               ),
             ),
@@ -85,9 +104,9 @@ class _MainShellState extends State<MainShell> {
 // ---------------------------------------------------------------------------
 
 const _kNavItems = [
-  (icon: Icons.home_rounded, label: 'Dashboard'),
-  (icon: Icons.flag_rounded, label: 'Goals'),
-  (icon: Icons.settings_rounded, label: 'Settings'),
+  Icons.home_rounded,
+  Icons.flag_rounded,
+  Icons.settings_rounded,
 ];
 
 class _FloatingNav extends StatelessWidget {
@@ -154,6 +173,12 @@ class _FloatingNav extends StatelessWidget {
               // ── Layer 2: specular + caustic paint ─────────────────────────
               CustomPaint(painter: _LiquidGlassPainter(isIOS: isIOS)),
 
+              // ── Layer 2.5: sliding highlight bubble ───────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _NavBubble(index: index, isIOS: isIOS),
+              ),
+
               // ── Layer 3: nav items ────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -162,10 +187,8 @@ class _FloatingNav extends StatelessWidget {
                     _kNavItems.length,
                     (i) => Expanded(
                       child: _NavItem(
-                        icon: _kNavItems[i].icon,
-                        label: _kNavItems[i].label,
+                        icon: _kNavItems[i],
                         selected: index == i,
-                        isIOS: isIOS,
                         onTap: () => onTap(i),
                       ),
                     ),
@@ -319,77 +342,110 @@ class _LiquidGlassPainter extends CustomPainter {
   bool shouldRepaint(_LiquidGlassPainter old) => old.isIOS != isIOS;
 }
 
+class _NavBubble extends StatelessWidget {
+  const _NavBubble({required this.index, required this.isIOS});
+  final int index;
+  final bool isIOS;
+
+  @override
+  Widget build(BuildContext context) {
+    final subPillColor = isIOS
+        ? const Color(0x50FFFFFF)
+        : const Color(0x35D6176E);
+
+    return AnimatedAlign(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutBack,
+      alignment: Alignment(-1.0 + (index * 1.0), 0),
+      child: FractionallySizedBox(
+        widthFactor: 1 / _kNavItems.length,
+        child: Center(
+          child: Container(
+            width: 64,
+            height: 44,
+            decoration: BoxDecoration(
+              color: subPillColor,
+              borderRadius: BorderRadius.circular(20),
+              border: isIOS
+                  ? Border.all(color: const Color(0x44FFFFFF), width: 0.7)
+                  : null,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Nav item
 // ---------------------------------------------------------------------------
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.icon,
-    required this.label,
     required this.selected,
-    required this.isIOS,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
   final bool selected;
-  final bool isIOS;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final iconColor = selected ? AppColors.pinkBright : const Color(0x88000000);
-    final labelColor = selected ? AppColors.pinkBright : const Color(0x66000000);
+  State<_NavItem> createState() => _NavItemState();
+}
 
-    // Selection sub-pill:
-    //   iOS  → white glass sub-pill (mimics iOS 18 tab indicator)
-    //   Droid → warm pink-tinted sub-pill
-    final subPillColor = selected
-        ? (isIOS
-            ? const Color(0x55FFFFFF)
-            : const Color(0x35D6176E))
-        : Colors.transparent;
+class _NavItemState extends State<_NavItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 220),
+    );
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) => _press.forward();
+  void _onTapUp(TapUpDetails _) {
+    _press.reverse();
+    HapticFeedback.selectionClick();
+    widget.onTap();
+  }
+  void _onTapCancel() => _press.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor =
+        widget.selected ? AppColors.pinkBright : const Color(0x77000000);
 
     return GestureDetector(
-      onTap: onTap,
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
       behavior: HitTestBehavior.opaque,
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 270),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: subPillColor,
-            borderRadius: BorderRadius.circular(24),
-            // iOS sub-pill gets its own micro specular rim
-            border: (isIOS && selected)
-                ? Border.all(color: const Color(0x40FFFFFF), width: 0.6)
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: selected ? 1.1 : 1.0,
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutBack,
-                child: Icon(icon, size: 21, color: iconColor),
-              ),
-              const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  color: labelColor,
-                  fontSize: 10,
-                  fontWeight:
-                      selected ? FontWeight.w700 : FontWeight.w500,
-                  letterSpacing: selected ? 0.1 : 0,
-                ),
-                child: Text(label),
-              ),
-            ],
+      child: AnimatedBuilder(
+        animation: _press,
+        builder: (context, child) => Transform.scale(
+          scale: 1.0 - _press.value * 0.11,
+          child: child,
+        ),
+        child: Center(
+          child: AnimatedScale(
+            scale: widget.selected ? 1.2 : 1.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            child: Icon(widget.icon, size: 28, color: iconColor),
           ),
         ),
       ),

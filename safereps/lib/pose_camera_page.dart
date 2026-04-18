@@ -344,7 +344,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('SafeReps'),
+        title: null,
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),

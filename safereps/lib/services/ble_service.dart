@@ -391,6 +391,15 @@ class BleService extends ChangeNotifier {
     statusMessage = 'Calibrating… keep device still';
     notifyListeners();
     await sendCommand('CALIBRATE');
+    // Safety net: if "Calibration complete" never arrives (e.g. BLE drop),
+    // clear the spinner after 30 s so the UI doesn't get stuck.
+    Future.delayed(const Duration(seconds: 30), () {
+      if (isCalibrating) {
+        isCalibrating = false;
+        statusMessage = 'Calibration timed out';
+        notifyListeners();
+      }
+    });
   }
 
   // ── Dispose ──────────────────────────────────────────────────────────────────

@@ -32,10 +32,7 @@ uint16_t packetSize;
 uint8_t  fifoBuffer[64];
 
 Quaternion  q;
-VectorFloat gravity;
-VectorInt16 aaRaw;      // raw accel from DMP FIFO (DMP units, ±2 g = 16384 LSB/g)
-VectorInt16 aaLinear;   // gravity-free linear accel (same scale)
-VectorInt16 gyroRaw;    // gyro from DMP FIFO (±2000 °/s = 16.4 LSB/°/s)
+VectorFloat gravity;    // unit gravity vector in sensor body frame (from DMP quaternion)
 float       ypr[3];
 
 volatile bool mpuInterrupt = false;
@@ -169,8 +166,11 @@ void updateBattery() {
 // ─── BLE callbacks ───────────────────────────────────────────────────────────
 
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer*) override {
+    void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         deviceConnected = true;
+        // Request 10 s supervision timeout so calibration (~5 s) survives.
+        // Units: min/max interval = 1.25 ms, timeout = 10 ms.
+        pServer->updateConnParams(desc->conn_handle, 24, 48, 0, 1000);
         Serial.println("{\"status\":\"BLE client connected\"}");
     }
     void onDisconnect(NimBLEServer*) override {
@@ -280,10 +280,22 @@ void loop() {
     // Deferred calibration — runs in the Arduino task so NimBLE's task stays free.
     if (calibrateRequested) {
         calibrateRequested = false;
+
+        // Disable DMP first: CalibrateAccel/Gyro read raw registers and will
+        // fight the DMP if it is still active, causing the loop to never converge.
+        mpu.setDMPEnabled(false);
+        delay(50);
+
         mpu.CalibrateAccel(6);
         mpu.CalibrateGyro(6);
         mpu.PrintActiveOffsets();
         saveCalibration();
+
+        // Re-enable DMP and flush any stale FIFO data that built up.
+        mpu.resetFIFO();
+        mpuInterrupt = false;
+        mpu.setDMPEnabled(true);
+
         bleSend("{\"status\":\"Calibration complete\"}");
     }
 
@@ -320,13 +332,17 @@ void loop() {
                     lastBatteryCheck = now;
                 }
 
-                // ── Accel + gyro from DMP FIFO (time-aligned with quaternion) ──
-                // aaLinear = raw accel − gravity vector → gives pure motion accel
-                mpu.dmpGetAccel(&aaRaw, fifoBuffer);
-                mpu.dmpGetLinearAccel(&aaLinear, &aaRaw, &gravity);
-                mpu.dmpGetGyro(&gyroRaw, fifoBuffer);
+                // Raw accel (±2 g → 16384 LSB/g) and gyro (±250 °/s → 131 LSB/°/s)
+                // from the sensor registers, matched to this DMP sample's gravity vector.
+                int16_t rax, ray, raz, rgx, rgy, rgz;
+                mpu.getMotion6(&rax, &ray, &raz, &rgx, &rgy, &rgz);
 
-                // aaLinear scale: 16384 LSB/g  |  gyroRaw scale: 16.4 LSB/°/s
+                // Subtract gravity in g-units so ax/ay/az is pure linear acceleration.
+                // gravity is a unit vector from the DMP quaternion — no scale mismatch.
+                float ax = rax / 16384.0f - gravity.x;
+                float ay = ray / 16384.0f - gravity.y;
+                float az = raz / 16384.0f - gravity.z;
+
                 char buf[220];
                 snprintf(buf, sizeof(buf),
                     "{\"yaw\":%.2f,\"pitch\":%.2f,\"roll\":%.2f,"
@@ -334,8 +350,8 @@ void loop() {
                     "\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,"
                     "\"batt\":%.2f}\n",
                     finalYaw, finalPitch, finalRoll,
-                    aaLinear.x / 16384.0f, aaLinear.y / 16384.0f, aaLinear.z / 16384.0f,
-                    gyroRaw.x  / 16.4f,   gyroRaw.y  / 16.4f,   gyroRaw.z  / 16.4f,
+                    ax, ay, az,
+                    rgx / 131.0f, rgy / 131.0f, rgz / 131.0f,
                     batteryVoltage
                 );
                 bleSend(buf);

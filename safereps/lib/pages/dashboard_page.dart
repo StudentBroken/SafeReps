@@ -157,19 +157,11 @@ class _DashHeader extends StatelessWidget {
         : hour < 17
             ? 'Good afternoon'
             : 'Good evening';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('SafeReps',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 2),
-        Text(greeting,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textLight)),
-      ],
-    );
+    return Text(greeting,
+        style: Theme.of(context)
+            .textTheme
+            .headlineMedium
+            ?.copyWith(fontSize: 24));
   }
 }
 
@@ -563,17 +555,17 @@ class _StartButton extends StatelessWidget {
           child: GestureDetector(
             onTap: onTap,
             child: Container(
-              width: 220,
-              height: 60,
+              width: 300,
+              height: 72,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(100),
                 color: AppColors.pinkBright,
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.pinkBright
-                        .withAlpha((90 * pulseAnim.value).round()),
-                    blurRadius: 32 * pulseAnim.value,
-                    spreadRadius: 4 * pulseAnim.value,
+                        .withAlpha((100 * pulseAnim.value).round()),
+                    blurRadius: 40 * pulseAnim.value,
+                    spreadRadius: 6 * pulseAnim.value,
                   ),
                 ],
               ),
@@ -581,15 +573,15 @@ class _StartButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: 30),
-                  SizedBox(width: 10),
+                      color: Colors.white, size: 34),
+                  SizedBox(width: 12),
                   Text(
-                    'START',
+                    'Start Session',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],

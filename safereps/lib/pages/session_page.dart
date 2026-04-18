@@ -190,6 +190,7 @@ class _SessionPageState extends State<SessionPage>
     final controller = _controller;
     final estimator = _estimator;
     if (_busy || estimator == null || controller == null) return;
+    if (_phase != _Phase.active) return;
 
     final meta = _buildFrameMeta(image, controller);
     if (meta == null) return;
@@ -405,8 +406,9 @@ class _SessionPageState extends State<SessionPage>
                 child: FittedBox(
                   fit: BoxFit.cover,
                   child: SizedBox(
-                    width: 1,
-                    height: controller.value.aspectRatio,
+                    width: controller.value.previewSize?.height ?? 1080,
+                    height: controller.value.previewSize?.width ??
+                        (1080 * controller.value.aspectRatio),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -487,11 +489,30 @@ class _SessionPageState extends State<SessionPage>
               ),
             ),
 
-          // ── Notification popup — center ─────────────────────────────────
-          if (_notification != null)
-            Center(
-              child: _NotificationPopup(message: _notification!),
+          // ── Notification banner — top slide, always mounted for smooth exit
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: AnimatedOpacity(
+                  opacity: _notification != null ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOut,
+                  child: AnimatedSlide(
+                    offset: _notification != null
+                        ? Offset.zero
+                        : const Offset(0, -0.6),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                    child: _NotificationBanner(message: _notification ?? ''),
+                  ),
+                ),
+              ),
             ),
+          ),
 
           // ── Preview overlay ─────────────────────────────────────────────
           Align(
@@ -783,15 +804,25 @@ class _ProgressIsland extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      borderRadius: 20,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.pinkBright.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.pinkBright.withValues(alpha: 0.35),
+            blurRadius: 16,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 56,
-            height: 56,
+            width: 76,
+            height: 76,
             child: CustomPaint(
               painter: _MiniRingPainter(progress: progress),
               child: Center(
@@ -799,26 +830,31 @@ class _ProgressIsland extends StatelessWidget {
                   '${(progress * 100).round()}%',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             exerciseName,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 2),
           Text(
             'Set ${setIndex + 1}/$totalSets',
-            style: const TextStyle(color: Colors.white54, fontSize: 9),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -838,9 +874,9 @@ class _MiniRingPainter extends CustomPainter {
       center,
       radius,
       Paint()
-        ..color = Colors.white24
+        ..color = Colors.white30
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 5,
+        ..strokeWidth = 6,
     );
     if (progress > 0) {
       canvas.drawArc(
@@ -849,9 +885,9 @@ class _MiniRingPainter extends CustomPainter {
         2 * pi * progress,
         false,
         Paint()
-          ..color = AppColors.pinkBright
+          ..color = Colors.white
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
+          ..strokeWidth = 6
           ..strokeCap = StrokeCap.round,
       );
     }
@@ -879,9 +915,19 @@ class _RepCountPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        borderRadius: 100,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.pinkBright.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pinkBright.withValues(alpha: 0.4),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -889,18 +935,18 @@ class _RepCountPill extends StatelessWidget {
               exerciseName,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 14),
-            Container(width: 1, height: 18, color: Colors.white30),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
+            Container(width: 1.5, height: 22, color: Colors.white38),
+            const SizedBox(width: 16),
             Text(
               '$reps',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 30,
+                fontSize: 38,
                 fontWeight: FontWeight.w800,
                 height: 1,
               ),
@@ -908,8 +954,8 @@ class _RepCountPill extends StatelessWidget {
             Text(
               ' / $goal',
               style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 18,
+                color: Colors.white60,
+                fontSize: 22,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -921,40 +967,46 @@ class _RepCountPill extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Notification popup (centered, brighter pink)
+// Notification banner (top-slide, translucent red)
 // ---------------------------------------------------------------------------
 
-class _NotificationPopup extends StatelessWidget {
-  const _NotificationPopup({required this.message});
+class _NotificationBanner extends StatelessWidget {
+  const _NotificationBanner({required this.message});
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 36),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE8175A),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFE8175A).withValues(alpha: 0.45),
-              blurRadius: 24,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            height: 1.3,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xCCE8175A),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE8175A).withValues(alpha: 0.3),
+            blurRadius: 12,
+            spreadRadius: 0,
           ),
-        ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Colors.white, size: 16),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
