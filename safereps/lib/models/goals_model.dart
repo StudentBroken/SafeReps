@@ -11,12 +11,18 @@ class ExerciseGoal {
     this.repsPerSet = 12,
     this.setsPerDay = 3,
     this.doneToday = 0,
+    this.tremorThreshold,
+    this.swingThreshold,
   });
 
   final String name;
   int repsPerSet;
   int setsPerDay;
   int doneToday;
+
+  /// IMU sensitivity overrides — null means use the built-in profile default.
+  double? tremorThreshold; // g
+  double? swingThreshold;  // °/s
 
   int get totalGoal => repsPerSet * setsPerDay;
   double get fraction =>
@@ -50,6 +56,14 @@ class GoalsModel extends ChangeNotifier {
     if (index < 0 || index >= exercises.length) return;
     if (repsPerSet != null) exercises[index].repsPerSet = repsPerSet;
     if (setsPerDay != null) exercises[index].setsPerDay = setsPerDay;
+    notifyListeners();
+    _persist();
+  }
+
+  void updateImuSensitivity(int index, {double? tremorThreshold, double? swingThreshold}) {
+    if (index < 0 || index >= exercises.length) return;
+    exercises[index].tremorThreshold = tremorThreshold;
+    exercises[index].swingThreshold = swingThreshold;
     notifyListeners();
     _persist();
   }
