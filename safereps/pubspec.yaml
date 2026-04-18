@@ -72,30 +72,28 @@ flutter:
     - assets/Warmup/push up wireframe demo.png
     - assets/calibration/
     - assets/SafeReps_Logo.png
-    - assets/Demonstration videos and images/Lateral raises no background.png
-    - assets/Demonstration videos and images/lateral raises.mp4
-    - assets/Demonstration videos and images/Bicep Curls no background.png
-    - assets/Demonstration videos and images/bicep curls.mp4
-    # ── Voice Coach Audio (registered at directory level) ──────────────────
-    - assets/Generic Audio/Start/
-    - assets/Generic Audio/Finish congratulations/
-    - assets/Generic Audio/Generic form correction/
-    - assets/Generic Audio/Generic Positive reinforcement/
-    - assets/Audio Bicep Curls/Form correction (Back and body movement)/
-    - assets/Audio Bicep Curls/Form correction (Elbows)/
-    - assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/
-    - assets/Audio Bicep Curls/Form correction (Range of Motion Top)/
-    - assets/Audio Bicep Curls/Form correction (Shoulder and Wrists)/
-    - assets/Audio Bicep Curls/Last reps Motivation/
-    - assets/Audio Bicep Curls/Positive stuff/
-    - assets/Audio Bicep Curls/Tempo/
-    - assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/
-    - assets/Lateral raises Audio/Form correction (Elbows and Wrists)/
-    - assets/Lateral raises Audio/Form correction (Range of Motion)/
-    - assets/Lateral raises Audio/Form correction (Shoulder and Traps)/
-    - assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/
-    - assets/Lateral raises Audio/Positive reinforcement (Struggle)/
-    - assets/Lateral raises Audio/Tempo/
+    - assets/demonstration_media/
+    - assets/calibration_assets/
+    # ── Voice Coach Audio ──────────────────────────────────────────────────
+    - assets/audio_generic/start/
+    - assets/audio_generic/finish_congratulations/
+    - assets/audio_generic/generic_form_correction/
+    - assets/audio_generic/generic_positive_reinforcement/
+    - assets/audio_bicep_curls/form_correction_back_and_body_movement/
+    - assets/audio_bicep_curls/form_correction_elbows/
+    - assets/audio_bicep_curls/form_correction_range_of_motion_bottom/
+    - assets/audio_bicep_curls/form_correction_range_of_motion_top/
+    - assets/audio_bicep_curls/form_correction_shoulder_and_wrists/
+    - assets/audio_bicep_curls/last_reps_motivation/
+    - assets/audio_bicep_curls/positive_stuff/
+    - assets/audio_bicep_curls/tempo/
+    - assets/audio_lateral_raises/form_correction_body_movements_and_swinging/
+    - assets/audio_lateral_raises/form_correction_elbows_and_wrists/
+    - assets/audio_lateral_raises/form_correction_range_of_motion/
+    - assets/audio_lateral_raises/form_correction_shoulder_and_traps/
+    - assets/audio_lateral_raises/positive_reinforcement_perfect_reps/
+    - assets/audio_lateral_raises/positive_reinforcement_struggle/
+    - assets/audio_lateral_raises/tempo/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

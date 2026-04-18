@@ -91,7 +91,10 @@ class _ExerciseSummary {
       goods.add(('No fatigue tremors', Icons.battery_full_rounded));
     }
     if (!hadSustainedSwing) {
-      goods.add(('Controlled movement pace', Icons.check_circle_outline_rounded));
+      goods.add((
+        'Controlled movement pace',
+        Icons.check_circle_outline_rounded,
+      ));
     }
     if (!hadYawIssue) {
       goods.add(('Clean arm path', Icons.straighten_rounded));
@@ -169,7 +172,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   // Per-category cooldowns — prevents one cue type blocking a totally different one.
   final Map<CueCategory, DateTime> _lastCueFiredAt = {};
   static const _correctionCooldown = Duration(milliseconds: 2000);
-  static const _positiveCooldown   = Duration(milliseconds: 4000);
+  static const _positiveCooldown = Duration(milliseconds: 4000);
   // Arms-not-straight alert dedup
   DateTime? _armsNotStraightLastAt;
 
@@ -217,9 +220,10 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   bool _showImuDebug = false;
 
   // ── IMU-gated rep counting ────────────────────────────────────────────────
-  int _confirmedReps = 0;          // reps counted only after IMU confirms movement
-  bool _imuRepConfirmed = false;   // IMU confirmed current rep's peak position
-  bool _incompleteRepPending = false; // ML Kit counted a rep but IMU gate failed
+  int _confirmedReps = 0; // reps counted only after IMU confirms movement
+  bool _imuRepConfirmed = false; // IMU confirmed current rep's peak position
+  bool _incompleteRepPending =
+      false; // ML Kit counted a rep but IMU gate failed
 
   // ── Derived getters ───────────────────────────────────────────────────────
 
@@ -233,8 +237,6 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
 
   double get _repProgress =>
       (_confirmedReps / _effectiveRepsGoal).clamp(0.0, 1.0);
-
-
 
   Exercise get _currentExercise => builtInExercises.firstWhere(
     (e) => e.name == _currentGoal.name,
@@ -270,8 +272,14 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     final data = widget.ble?.latestData;
     if (data == null) return 0.0;
     final profile = _currentImuProfile;
-    final tremorBad = (data.tremor / (profile.tremorThreshold * 2.5)).clamp(0.0, 1.0);
-    final swingBad = (data.swing / (profile.swingThreshold * 2.5)).clamp(0.0, 1.0);
+    final tremorBad = (data.tremor / (profile.tremorThreshold * 2.5)).clamp(
+      0.0,
+      1.0,
+    );
+    final swingBad = (data.swing / (profile.swingThreshold * 2.5)).clamp(
+      0.0,
+      1.0,
+    );
     return tremorBad > swingBad ? tremorBad : swingBad;
   }
 
@@ -532,8 +540,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             }
 
             // Reset IMU gate when a new rep begins (top → descending).
-            if (prevPhase == RepPhase.top &&
-                newPhase == RepPhase.descending) {
+            if (prevPhase == RepPhase.top && newPhase == RepPhase.descending) {
               _imuRepConfirmed = false;
             }
 
@@ -628,84 +635,90 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             }
           }
 
-      // ── Continuous per-frame form checks (outside rep-boundary events) ────
-      if (_phase == _Phase.active && angles != null) {
-        final isCurl = _currentGoal.name.contains('Curl');
-        final repPhase = _repResult?.phase;
+          // ── Continuous per-frame form checks (outside rep-boundary events) ────
+          if (_phase == _Phase.active && angles != null) {
+            final isCurl = _currentGoal.name.contains('Curl');
+            final repPhase = _repResult?.phase;
 
-        // Bicep Curl: Form cues
-        if (isCurl) {
-          final elbowAngle = (angles.leftElbow != null && angles.rightElbow != null)
-              ? (angles.leftElbow! + angles.rightElbow!) / 2
-              : (angles.leftElbow ?? angles.rightElbow);
+            // Bicep Curl: Form cues
+            if (isCurl) {
+              final elbowAngle =
+                  (angles.leftElbow != null && angles.rightElbow != null)
+                  ? (angles.leftElbow! + angles.rightElbow!) / 2
+                  : (angles.leftElbow ?? angles.rightElbow);
 
-          if (elbowAngle != null) {
-            final now2 = DateTime.now();
-            final lastArm = _armsNotStraightLastAt;
-            final canFire = lastArm == null ||
-                now2.difference(lastArm) > const Duration(seconds: 4);
+              if (elbowAngle != null) {
+                final now2 = DateTime.now();
+                final lastArm = _armsNotStraightLastAt;
+                final canFire =
+                    lastArm == null ||
+                    now2.difference(lastArm) > const Duration(seconds: 4);
 
-            if (canFire) {
-              // 1. Extension check: at the hanging/start phase
-              if ((repPhase == RepPhase.top || repPhase == RepPhase.idle) &&
-                  elbowAngle < 140) {
-                _armsNotStraightLastAt = now2;
-                _showQuickPopup('Straighten your arms!');
-                _fireCoachCue(CueCategory.bicepRomBottom, correction: true);
+                if (canFire) {
+                  // 1. Extension check: at the hanging/start phase
+                  if ((repPhase == RepPhase.top || repPhase == RepPhase.idle) &&
+                      elbowAngle < 140) {
+                    _armsNotStraightLastAt = now2;
+                    _showQuickPopup('Straighten your arms!');
+                    _fireCoachCue(CueCategory.bicepRomBottom, correction: true);
+                  }
+                  // 2. Contraction check: at the peak of the curl
+                  else if (repPhase == RepPhase.bottom && elbowAngle > 55) {
+                    _armsNotStraightLastAt = now2;
+                    _showQuickPopup('Curl higher!');
+                    _fireCoachCue(CueCategory.bicepRomTop, correction: true);
+                  }
+                }
               }
-              // 2. Contraction check: at the peak of the curl
-              else if (repPhase == RepPhase.bottom && elbowAngle > 55) {
-                _armsNotStraightLastAt = now2;
-                _showQuickPopup('Curl higher!');
-                _fireCoachCue(CueCategory.bicepRomTop, correction: true);
+            }
+
+            // Lateral: if shoulder angle stays below 15° mid-rep the user isn't
+            // raising high enough — give a live nudge.
+            // Lateral Raise: Form cues
+            if (!isCurl) {
+              // Raise higher: during active lift (descending)
+              if (repPhase == RepPhase.descending) {
+                final ls = angles.leftShoulder;
+                final rs = angles.rightShoulder;
+                final shoulderAngle = (ls != null && rs != null)
+                    ? (ls + rs) / 2
+                    : (ls ?? rs);
+                if (shoulderAngle != null && shoulderAngle < 15) {
+                  final now2 = DateTime.now();
+                  final lastArm = _armsNotStraightLastAt;
+                  if (lastArm == null ||
+                      now2.difference(lastArm) > const Duration(seconds: 4)) {
+                    _armsNotStraightLastAt = now2;
+                    _showQuickPopup('Raise higher!');
+                    _fireCoachCue(CueCategory.lateralRom, correction: true);
+                  }
+                }
+              }
+
+              // Straighten arms: during active lift (descending) or peak (bottom)
+              if (repPhase == RepPhase.descending ||
+                  repPhase == RepPhase.bottom) {
+                final le = angles.leftElbow;
+                final re = angles.rightElbow;
+                final elbowAngle = (le != null && re != null)
+                    ? (le + re) / 2
+                    : (le ?? re);
+                if (elbowAngle != null && elbowAngle < 140) {
+                  final now2 = DateTime.now();
+                  final lastArm = _armsNotStraightLastAt;
+                  if (lastArm == null ||
+                      now2.difference(lastArm) > const Duration(seconds: 4)) {
+                    _armsNotStraightLastAt = now2;
+                    _showQuickPopup('Straighten your arms!');
+                    _fireCoachCue(
+                      CueCategory.lateralElbowWrist,
+                      correction: true,
+                    );
+                  }
+                }
               }
             }
           }
-        }
-
-        // Lateral: if shoulder angle stays below 15° mid-rep the user isn't
-        // raising high enough — give a live nudge.
-        // Lateral Raise: Form cues
-        if (!isCurl) {
-          // Raise higher: during active lift (descending)
-          if (repPhase == RepPhase.descending) {
-            final ls = angles.leftShoulder;
-            final rs = angles.rightShoulder;
-            final shoulderAngle = (ls != null && rs != null)
-                ? (ls + rs) / 2
-                : (ls ?? rs);
-            if (shoulderAngle != null && shoulderAngle < 15) {
-              final now2 = DateTime.now();
-              final lastArm = _armsNotStraightLastAt;
-              if (lastArm == null ||
-                  now2.difference(lastArm) > const Duration(seconds: 4)) {
-                _armsNotStraightLastAt = now2;
-                _showQuickPopup('Raise higher!');
-                _fireCoachCue(CueCategory.lateralRom, correction: true);
-              }
-            }
-          }
-
-          // Straighten arms: during active lift (descending) or peak (bottom)
-          if (repPhase == RepPhase.descending || repPhase == RepPhase.bottom) {
-            final le = angles.leftElbow;
-            final re = angles.rightElbow;
-            final elbowAngle = (le != null && re != null)
-                ? (le + re) / 2
-                : (le ?? re);
-            if (elbowAngle != null && elbowAngle < 140) {
-              final now2 = DateTime.now();
-              final lastArm = _armsNotStraightLastAt;
-              if (lastArm == null ||
-                  now2.difference(lastArm) > const Duration(seconds: 4)) {
-                _armsNotStraightLastAt = now2;
-                _showQuickPopup('Straighten your arms!');
-                _fireCoachCue(CueCategory.lateralElbowWrist, correction: true);
-              }
-            }
-          }
-        }
-      }
 
           _lastRepTime = now;
         }
@@ -755,7 +768,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         _formTracker.flagRollViolation(profile.axisDeductionPct);
         // Roll = forearm/wrist rotation → shoulder/wrist cue
         _fireCoachCue(
-          isCurl ? CueCategory.bicepShoulderWrist : CueCategory.lateralShoulderTrap,
+          isCurl
+              ? CueCategory.bicepShoulderWrist
+              : CueCategory.lateralShoulderTrap,
           correction: true,
         );
       }
@@ -784,7 +799,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
       _fireCoachCue(CueCategory.genericFormCorrection, correction: true);
       // Motivation to push through the last reps
       _fireCoachCue(
-        isCurl ? CueCategory.bicepLastRepsMotiv : CueCategory.lateralPositiveStruggle,
+        isCurl
+            ? CueCategory.bicepLastRepsMotiv
+            : CueCategory.lateralPositiveStruggle,
       );
       _checkFatigue();
     }
@@ -824,7 +841,8 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   void _onIslandTap() {
     final now = DateTime.now();
     final last = _islandTapLastAt;
-    if (last == null || now.difference(last) > const Duration(milliseconds: 600)) {
+    if (last == null ||
+        now.difference(last) > const Duration(milliseconds: 600)) {
       _islandTapCount = 1;
     } else {
       _islandTapCount++;
@@ -859,11 +877,13 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     final name = _currentGoal.name;
     if (name.contains('Curl')) {
       // Bicep curl: top ~155° (curled), bottom ~25° (extended)
-      if (maxAngle < 140) return CueCategory.bicepRomTop;    // didn't curl enough
-      if (minAngle > 40)  return CueCategory.bicepRomBottom; // didn't extend enough
+      if (maxAngle < 140) return CueCategory.bicepRomTop; // didn't curl enough
+      if (minAngle > 40)
+        return CueCategory.bicepRomBottom; // didn't extend enough
     } else {
       // Lateral raise: top ~25° (shoulder height), bottom ~80° (at side)
-      if (minAngle > 40) return CueCategory.lateralRom; // didn't raise high enough
+      if (minAngle > 40)
+        return CueCategory.lateralRom; // didn't raise high enough
     }
     return null;
   }
@@ -1192,9 +1212,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             Positioned(
               top: 130,
               left: 12,
-              child: SafeArea(
-                child: _ImuDebugPanel(ble: widget.ble!),
-              ),
+              child: SafeArea(child: _ImuDebugPanel(ble: widget.ble!)),
             ),
 
           // ── Active: form intensity bar (right side, BLE only) ──
@@ -1315,7 +1333,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                                   Expanded(
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 10),
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
                                       child: Text(
                                         caption ?? '',
                                         textAlign: TextAlign.left,
@@ -1328,7 +1348,9 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                                           shadows: [
                                             Shadow(
                                               blurRadius: 8,
-                                              color: Colors.black.withValues(alpha: 0.6),
+                                              color: Colors.black.withValues(
+                                                alpha: 0.6,
+                                              ),
                                               offset: const Offset(0, 1),
                                             ),
                                           ],
@@ -1347,7 +1369,6 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                 );
               },
             ),
-
 
           Align(
             alignment: Alignment.bottomCenter,
@@ -2161,9 +2182,10 @@ class _DoneOverlayState extends State<_DoneOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 460),
     );
-    _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(
-      CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic),
-    );
+    _slide = Tween(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _enter, curve: Curves.easeOut);
     _enter.forward();
   }
@@ -2192,8 +2214,9 @@ class _DoneOverlayState extends State<_DoneOverlay>
     final hasFormData =
         widget.bleWasConnected && widget.summaries.any((s) => s.hasData);
     final overallQ = _overallQuality;
-    final faceColor =
-        hasFormData ? _qualityColor(overallQ) : AppColors.pinkBright;
+    final faceColor = hasFormData
+        ? _qualityColor(overallQ)
+        : AppColors.pinkBright;
 
     return FadeTransition(
       opacity: _fade,
@@ -2241,13 +2264,17 @@ class _DoneOverlayState extends State<_DoneOverlay>
                           const Text(
                             'Overall form quality',
                             style: TextStyle(
-                                color: AppColors.textLight, fontSize: 12),
+                              color: AppColors.textLight,
+                              fontSize: 12,
+                            ),
                           ),
                         ] else
                           const Text(
                             'Great work today!',
                             style: TextStyle(
-                                color: AppColors.textMid, fontSize: 15),
+                              color: AppColors.textMid,
+                              fontSize: 15,
+                            ),
                           ),
                       ],
                     ),
@@ -2276,14 +2303,22 @@ class _DoneOverlayState extends State<_DoneOverlay>
                           timestamp: DateTime.now(),
                           exercises: widget.summaries
                               .where((s) => s.hasData)
-                              .map((s) => ExerciseHistoryEntry(
-                                    name: s.name,
-                                    repsCompleted: s.repResults.length,
-                                    avgQuality: s.avgQuality,
-                                    repQualities: s.repResults.map((r) => r.quality).toList(),
-                                    issues: s.issueAspects.map((a) => a.$1).toList(),
-                                    goods: s.goodAspects.map((a) => a.$1).toList(),
-                                  ))
+                              .map(
+                                (s) => ExerciseHistoryEntry(
+                                  name: s.name,
+                                  repsCompleted: s.repResults.length,
+                                  avgQuality: s.avgQuality,
+                                  repQualities: s.repResults
+                                      .map((r) => r.quality)
+                                      .toList(),
+                                  issues: s.issueAspects
+                                      .map((a) => a.$1)
+                                      .toList(),
+                                  goods: s.goodAspects
+                                      .map((a) => a.$1)
+                                      .toList(),
+                                ),
+                              )
                               .toList(),
                         );
                         if (sessionEntry.exercises.isNotEmpty) {
@@ -2326,7 +2361,9 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
     final q = widget.summary.avgQuality;
     final recs = widget.summary.recommendations;
     final goods = hasForm ? widget.summary.goodAspects : <(String, IconData)>[];
-    final issues = hasForm ? widget.summary.issueAspects : <(String, IconData)>[];
+    final issues = hasForm
+        ? widget.summary.issueAspects
+        : <(String, IconData)>[];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -2350,12 +2387,15 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                 if (hasForm)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _qualityColor(q).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: _qualityColor(q).withValues(alpha: 0.45)),
+                        color: _qualityColor(q).withValues(alpha: 0.45),
+                      ),
                     ),
                     child: Text(
                       '${q.round()}%  ${_qualityLabel(q)}',
@@ -2370,7 +2410,9 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                   Text(
                     '${widget.summary.repResults.length} reps',
                     style: const TextStyle(
-                        color: AppColors.textMid, fontSize: 13),
+                      color: AppColors.textMid,
+                      fontSize: 13,
+                    ),
                   ),
               ],
             ),
@@ -2444,15 +2486,19 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ...widget.summary.repResults.asMap().entries.map((e) {
+                            ...widget.summary.repResults.asMap().entries.map((
+                              e,
+                            ) {
                               final idx = e.key;
                               final rep = e.value;
                               final repQ = rep.quality;
                               final flags = <IconData>[
-                                if (rep.sustainedTremor) Icons.vibration_rounded,
+                                if (rep.sustainedTremor)
+                                  Icons.vibration_rounded,
                                 if (rep.sustainedSwing) Icons.speed_rounded,
                                 if (rep.yawViolated) Icons.rotate_left_rounded,
-                                if (rep.rollViolated) Icons.rotate_right_rounded,
+                                if (rep.rollViolated)
+                                  Icons.rotate_right_rounded,
                                 if (rep.pitchViolated) Icons.flip_rounded,
                               ];
                               return Padding(
@@ -2476,12 +2522,14 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                                       width: 32,
                                       height: 22,
                                       decoration: BoxDecoration(
-                                        color: _qualityColor(repQ)
-                                            .withValues(alpha: 0.14),
+                                        color: _qualityColor(
+                                          repQ,
+                                        ).withValues(alpha: 0.14),
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
-                                          color: _qualityColor(repQ)
-                                              .withValues(alpha: 0.5),
+                                          color: _qualityColor(
+                                            repQ,
+                                          ).withValues(alpha: 0.5),
                                         ),
                                       ),
                                       child: Center(
@@ -2510,11 +2558,13 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                                       Wrap(
                                         spacing: 4,
                                         children: flags
-                                            .map((icon) => Icon(
-                                                  icon,
-                                                  size: 13,
-                                                  color: const Color(0xFFBF360C),
-                                                ))
+                                            .map(
+                                              (icon) => Icon(
+                                                icon,
+                                                size: 13,
+                                                color: const Color(0xFFBF360C),
+                                              ),
+                                            )
                                             .toList(),
                                       ),
                                   ],
@@ -2567,8 +2617,11 @@ class _ExerciseReportCardState extends State<_ExerciseReportCard> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.lightbulb_outline_rounded,
-                            size: 15, color: Color(0xFFF57C00)),
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          size: 15,
+                          color: Color(0xFFF57C00),
+                        ),
                         SizedBox(width: 6),
                         Text(
                           'How to improve',
@@ -2632,9 +2685,17 @@ class _FormIntensityBar extends StatelessWidget {
 
   static Color _colorFor(double t) {
     if (t < 0.5) {
-      return Color.lerp(const Color(0xFF4CAF50), const Color(0xFFFFC107), t * 2)!;
+      return Color.lerp(
+        const Color(0xFF4CAF50),
+        const Color(0xFFFFC107),
+        t * 2,
+      )!;
     } else {
-      return Color.lerp(const Color(0xFFFFC107), const Color(0xFFE53935), (t - 0.5) * 2)!;
+      return Color.lerp(
+        const Color(0xFFFFC107),
+        const Color(0xFFE53935),
+        (t - 0.5) * 2,
+      )!;
     }
   }
 
@@ -2700,8 +2761,7 @@ class _AspectRow extends StatelessWidget {
     final face = isGood
         ? Icons.sentiment_satisfied_alt_rounded
         : Icons.sentiment_dissatisfied_rounded;
-    final color =
-        isGood ? const Color(0xFF2E7D32) : const Color(0xFFBF360C);
+    final color = isGood ? const Color(0xFF2E7D32) : const Color(0xFFBF360C);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
@@ -2738,26 +2798,33 @@ class _ImuDebugPanel extends StatelessWidget {
     final data = ble.latestData;
 
     Widget row(String label, String value) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 56,
-                child: Text(label,
-                    style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600)),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
-              Text(value,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
-            ],
+            ),
           ),
-        );
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
 
-    String f(double? v, {int d = 2}) =>
-        v == null ? '—' : v.toStringAsFixed(d);
+    String f(double? v, {int d = 2}) => v == null ? '—' : v.toStringAsFixed(d);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -2770,30 +2837,36 @@ class _ImuDebugPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('IMU DEBUG',
-              style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2)),
+          const Text(
+            'IMU DEBUG',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 6),
           if (data == null)
-            const Text('No data', style: TextStyle(color: Colors.white38, fontSize: 10))
+            const Text(
+              'No data',
+              style: TextStyle(color: Colors.white38, fontSize: 10),
+            )
           else ...[
-            row('Yaw',    '${f(data.yaw)}°'),
-            row('Pitch',  '${f(data.pitch)}°'),
-            row('Roll',   '${f(data.roll)}°'),
+            row('Yaw', '${f(data.yaw)}°'),
+            row('Pitch', '${f(data.pitch)}°'),
+            row('Roll', '${f(data.roll)}°'),
             const SizedBox(height: 4),
             row('Tremor', '${f(data.tremor, d: 4)} g'),
-            row('aX',     '${f(data.ax, d: 3)} g'),
-            row('aY',     '${f(data.ay, d: 3)} g'),
-            row('aZ',     '${f(data.az, d: 3)} g'),
+            row('aX', '${f(data.ax, d: 3)} g'),
+            row('aY', '${f(data.ay, d: 3)} g'),
+            row('aZ', '${f(data.az, d: 3)} g'),
             const SizedBox(height: 4),
-            row('gX',     '${f(data.gx, d: 1)}°/s'),
-            row('gY',     '${f(data.gy, d: 1)}°/s'),
-            row('gZ',     '${f(data.gz, d: 1)}°/s'),
+            row('gX', '${f(data.gx, d: 1)}°/s'),
+            row('gY', '${f(data.gy, d: 1)}°/s'),
+            row('gZ', '${f(data.gz, d: 1)}°/s'),
             const SizedBox(height: 4),
-            row('Batt',   '${f(data.batt)} V'),
+            row('Batt', '${f(data.batt)} V'),
           ],
         ],
       ),

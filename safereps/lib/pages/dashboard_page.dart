@@ -1479,18 +1479,14 @@ class _ProperFormExercise {
 const List<_ProperFormExercise> _properFormExercises = [
   _ProperFormExercise(
     name: 'Lateral Raises',
-    imagePath:
-        'assets/Demonstration videos and images/Lateral raises no background.png',
-    videoPath:
-        'assets/Demonstration videos and images/lateral raises.mp4',
+    imagePath: 'assets/demonstration_media/lateral_raises_no_bg.png',
+    videoPath: 'assets/demonstration_media/lateral_raises.mp4',
     icon: Icons.accessibility_new_rounded,
   ),
   _ProperFormExercise(
     name: 'Bicep Curls',
-    imagePath:
-        'assets/Demonstration videos and images/Bicep Curls no background.png',
-    videoPath:
-        'assets/Demonstration videos and images/bicep curls.mp4',
+    imagePath: 'assets/demonstration_media/bicep_curls_no_bg.png',
+    videoPath: 'assets/demonstration_media/bicep_curls.mp4',
     icon: Icons.fitness_center_rounded,
   ),
 ];
@@ -1679,8 +1675,8 @@ class _ProperFormViewerDialog extends StatefulWidget {
 
 class _ProperFormViewerDialogState extends State<_ProperFormViewerDialog>
     with SingleTickerProviderStateMixin {
-  // 0 = image, 1 = video
-  int _mediaIndex = 0;
+  // 1 = video (primary), 0 = image
+  int _mediaIndex = 1;
 
   VideoPlayerController? _videoCtrl;
   bool _videoReady = false;
@@ -1698,6 +1694,11 @@ class _ProperFormViewerDialogState extends State<_ProperFormViewerDialog>
       value: 1,
     );
     _fadeAnim = _fadeCtrl;
+
+    // Start video initialization immediately if defaulting to video
+    if (_mediaIndex == 1) {
+      _initVideo();
+    }
   }
 
   @override

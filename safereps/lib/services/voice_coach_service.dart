@@ -48,155 +48,155 @@ const _assets = <CueCategory, List<String>>{
 
   // ── GENERIC: Start ────────────────────────────────────────────────────────
   CueCategory.start: [
-    'assets/Generic Audio/Start/ge ready.mp3',
-    'assets/Generic Audio/Start/get to work and have an amazing session.mp3',
-    'assets/Generic Audio/Start/im ready when you are take a deep breath you\'re going to do phenomenally today.mp3',
-    'assets/Generic Audio/Start/you\'re here, ready and already looking strong lets get to work.mp3',
+    'assets/audio_generic/start/get_ready.mp3',
+    'assets/audio_generic/start/get_to_work_and_have_an_amazing_session.mp3',
+    'assets/audio_generic/start/im_ready_when_you_are_take_a_deep_breath_you\'re_going_to_do_phenomenally_today.mp3',
+    'assets/audio_generic/start/you\'re_here,_ready_and_already_looking_strong_lets_get_to_work.mp3',
   ],
 
   // ── GENERIC: Finish / Congratulations ────────────────────────────────────
   CueCategory.finishCongrats: [
-    'assets/Generic Audio/Finish congratulations/Done adn dusted you showed up pushed hard and got stronger pehnomenal effort.mp3',
-    'assets/Generic Audio/Finish congratulations/final set is in the books you proved exactly how strong you are today outstanding work.mp3',
-    'assets/Generic Audio/Finish congratulations/session complete, you gave it your all and it paid off.mp3',
-    'assets/Generic Audio/Finish congratulations/set complete great work drop the weight and rest.mp3',
-    'assets/Generic Audio/Finish congratulations/set complete great work.mp3',
-    'assets/Generic Audio/Finish congratulations/That is how its done you crushed every single set amazing job.mp3',
-    'assets/Generic Audio/Finish congratulations/Workout complete you put in the work today be incredibly proud of yourself.mp3',
+    'assets/audio_generic/finish_congratulations/done_and_dusted_you_showed_up_pushed_hard_and_got_stronger_pehnomenal_effort.mp3',
+    'assets/audio_generic/finish_congratulations/final_set_is_in_the_books_you_proved_exactly_how_strong_you_are_today_outstanding_work.mp3',
+    'assets/audio_generic/finish_congratulations/session_complete,_you_gave_it_your_all_and_it_paid_off.mp3',
+    'assets/audio_generic/finish_congratulations/set_complete_great_work_drop_the_weight_and_rest.mp3',
+    'assets/audio_generic/finish_congratulations/set_complete_great_work.mp3',
+    'assets/audio_generic/finish_congratulations/that_is_how_its_done_you_crushed_every_single_set_amazing_job.mp3',
+    'assets/audio_generic/finish_congratulations/workout_complete_you_put_in_the_work_today_be_incredibly_proud_of_yourself.mp3',
   ],
 
   // ── GENERIC: Positive reinforcement ──────────────────────────────────────
   CueCategory.genericPositive: [
-    'assets/Generic Audio/Generic Positive reinforcement/i see you working keep that intensity high its paying off.mp3',
-    'assets/Generic Audio/Generic Positive reinforcement/thats it perfect execution absolute machine.mp3',
-    'assets/Generic Audio/Generic Positive reinforcement/this is where the real progress happens you\'re doing incredible dont quit.mp3',
-    'assets/Generic Audio/Generic Positive reinforcement/you are crushing this keep going you\'re unstoppable.mp3',
-    'assets/Generic Audio/Generic Positive reinforcement/you\'re making it look easy lets go.mp3',
+    'assets/audio_generic/generic_positive_reinforcement/i_see_you_working_keep_that_intensity_high_its_paying_off.mp3',
+    'assets/audio_generic/generic_positive_reinforcement/thats_it_perfect_execution_absolute_machine.mp3',
+    'assets/audio_generic/generic_positive_reinforcement/this_is_where_the_real_progress_happens_you\'re_doing_incredible_dont_quit.mp3',
+    'assets/audio_generic/generic_positive_reinforcement/you_are_crushing_this_keep_going_you\'re_unstoppable.mp3',
+    'assets/audio_generic/generic_positive_reinforcement/you\'re_making_it_look_easy_lets_go.mp3',
   ],
 
   // ── GENERIC: Form corrections (cross-exercise) ────────────────────────────
   CueCategory.genericFormCorrection: [
-    'assets/Generic Audio/Generic form correction/amazing keep breathing keep oxygen there.mp3',
-    'assets/Generic Audio/Generic form correction/beautiful form just control the tempo.mp3',
-    'assets/Generic Audio/Generic form correction/excellent control, 3 seconds on the way down.mp3',
-    'assets/Generic Audio/Generic form correction/great power, plant your feet flat to build an even stronger base.mp3',
-    'assets/Generic Audio/Generic form correction/looking strong squeeze ur glutes to stabilize the body even more.mp3',
-    'assets/Generic Audio/Generic form correction/love the energy remember to keep chest up shoulder back.mp3',
-    'assets/Generic Audio/Generic form correction/perfect rythm right there lock into thta pace ur killing it.mp3',
-    'assets/Generic Audio/Generic form correction/u got the strenght for this breath in and breath out on the way in n out.mp3',
-    'assets/Generic Audio/Generic form correction/you have insane strenght, but if you have to cheat the movement drop the weight and blah blah blah.mp3',
-    'assets/Generic Audio/Generic form correction/you\'re doing great keep spine completely neutral .mp3',
-    'assets/Generic Audio/Generic form correction/You\'re doing great, form slipping, reset and get back to perfect.mp3',
-    'assets/Generic Audio/Generic form correction/you\'re moving serious weight slow those muscles down .mp3',
+    'assets/audio_generic/generic_form_correction/amazing_keep_breathing_keep_oxygen_there.mp3',
+    'assets/audio_generic/generic_form_correction/beautiful_form_just_control_the_tempo.mp3',
+    'assets/audio_generic/generic_form_correction/excellent_control,_3_seconds_on_the_way_down.mp3',
+    'assets/audio_generic/generic_form_correction/great_power,_plant_your_feet_flat_to_build_an_even_stronger_base.mp3',
+    'assets/audio_generic/generic_form_correction/looking_strong_squeeze_ur_glutes_to_stabilize_the_body_even_more.mp3',
+    'assets/audio_generic/generic_form_correction/love_the_energy_remember_to_keep_chest_up_shoulder_back.mp3',
+    'assets/audio_generic/generic_form_correction/perfect_rythm_right_there_lock_into_thta_pace_ur_killing_it.mp3',
+    'assets/audio_generic/generic_form_correction/u_got_the_strenght_for_this_breath_in_and_breath_out_on_the_way_in_n_out.mp3',
+    'assets/audio_generic/generic_form_correction/you\'re_doing_great,_form_slipping,_reset_and_get_back_to_perfect.mp3',
+    'assets/audio_generic/generic_form_correction/you\'re_doing_great_keep_spine_completely_neutral_.mp3',
+    'assets/audio_generic/generic_form_correction/you\'re_moving_serious_weight_slow_those_muscles_down_.mp3',
+    'assets/audio_generic/generic_form_correction/you_have_insane_strenght,_but_if_you_have_to_cheat_the_movement_drop_the_weight_and_blah_blah_blah.mp3',
   ],
 
   // ── BICEP CURLS ──────────────────────────────────────────────────────────
 
   CueCategory.bicepBackBody: [
-    'assets/Audio Bicep Curls/Form correction (Back and body movement)/Lock your code keep your torso completely vertical.mp3',
-    'assets/Audio Bicep Curls/Form correction (Back and body movement)/Use muscle not momentum use your body keep stable.mp3',
-    'assets/Audio Bicep Curls/Form correction (Back and body movement)/Watch the swinging use your biceps not your back.mp3',
-    'assets/Audio Bicep Curls/Form correction (Back and body movement)/You\'re leaning back to get it up lighten the weight if you need t.mp3',
+    'assets/audio_bicep_curls/form_correction_back_and_body_movement/lock_your_code_keep_your_torso_completely_vertical.mp3',
+    'assets/audio_bicep_curls/form_correction_back_and_body_movement/use_muscle_not_momentum_use_your_body_keep_stable.mp3',
+    'assets/audio_bicep_curls/form_correction_back_and_body_movement/watch_the_swinging_use_your_biceps_not_your_back.mp3',
+    'assets/audio_bicep_curls/form_correction_back_and_body_movement/you\'re_leaning_back_to_get_it_up_lighten_the_weight_if_you_need_t.mp3',
   ],
 
   CueCategory.bicepElbows: [
-    'assets/Audio Bicep Curls/Form correction (Elbows)/Bend elbows to wrist, dont drift forwards.mp3',
-    'assets/Audio Bicep Curls/Form correction (Elbows)/Elbow creeping up, lock them in place.mp3',
-    'assets/Audio Bicep Curls/Form correction (Elbows)/upper arm completely still, only form arm should move.mp3',
+    'assets/audio_bicep_curls/form_correction_elbows/bend_elbows_to_wrist,_dont_drift_forwards.mp3',
+    'assets/audio_bicep_curls/form_correction_elbows/elbow_creeping_up,_lock_them_in_place.mp3',
+    'assets/audio_bicep_curls/form_correction_elbows/upper_arm_completely_still,_only_form_arm_should_move.mp3',
   ],
 
   CueCategory.bicepRomBottom: [
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/Full extension on the way down dont cheat yourself.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/Go all the way down, full stretch at the bottom.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/Uncurl all the way, let the arms hang before next rep.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Bottom)/You\'re cutting it short, straighten the arm completely .mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_bottom/full_extension_on_the_way_down_dont_cheat_yourself.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_bottom/go_all_the_way_down,_full_stretch_at_the_bottom.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_bottom/uncurl_all_the_way,_let_the_arms_hang_before_next_rep.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_bottom/you\'re_cutting_it_short,_straighten_the_arm_completely_.mp3',
   ],
 
   CueCategory.bicepRomTop: [
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Top)/Bring it all the way up and squeeze.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Top)/Close that gap at the top, hard squeeze.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Top)/Don\'t stop halfway, curl it up to the shoulder.mp3',
-    'assets/Audio Bicep Curls/Form correction (Range of Motion Top)/Get that full contraction at the top of the rep.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_top/bring_it_all_the_way_up_and_squeeze.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_top/close_that_gap_at_the_top,_hard_squeeze.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_top/don\'t_stop_halfway,_curl_it_up_to_the_shoulder.mp3',
+    'assets/audio_bicep_curls/form_correction_range_of_motion_top/get_that_full_contraction_at_the_top_of_the_rep.mp3',
   ],
 
   CueCategory.bicepShoulderWrist: [
-    'assets/Audio Bicep Curls/Form correction (Shoulder and Wrists)/Keep your wrists neutral dont let them curl inwards at the top.mp3',
-    'assets/Audio Bicep Curls/Form correction (Shoulder and Wrists)/Keep your shoulders down and relax dont shrug the weight.mp3',
-    'assets/Audio Bicep Curls/Form correction (Shoulder and Wrists)/Relax your neck and shoulders let the biceps do the work.mp3',
+    'assets/audio_bicep_curls/form_correction_shoulder_and_wrists/keep_your_shoulders_down_and_relax_dont_shrug_the_weight.mp3',
+    'assets/audio_bicep_curls/form_correction_shoulder_and_wrists/keep_your_wrists_neutral_dont_let_them_curl_inwards_at_the_top.mp3',
+    'assets/audio_bicep_curls/form_correction_shoulder_and_wrists/relax_your_neck_and_shoulders_let_the_biceps_do_the_work.mp3',
   ],
 
   CueCategory.bicepLastRepsMotiv: [
-    'assets/Audio Bicep Curls/Last reps Motivation/Dont drop that weight you have one more in there.mp3',
-    'assets/Audio Bicep Curls/Last reps Motivation/Fight for it squeeze it up there.mp3',
-    'assets/Audio Bicep Curls/Last reps Motivation/Halfway there, maintain that strict form.mp3',
+    'assets/audio_bicep_curls/last_reps_motivation/dont_drop_that_weight_you_have_one_more_in_there.mp3',
+    'assets/audio_bicep_curls/last_reps_motivation/fight_for_it_squeeze_it_up_there.mp3',
+    'assets/audio_bicep_curls/last_reps_motivation/halfway_there,_maintain_that_strict_form.mp3',
   ],
 
   CueCategory.bicepPositive: [
-    'assets/Audio Bicep Curls/Positive stuff/Absolute machine right now lets finish strong.mp3',
-    'assets/Audio Bicep Curls/Positive stuff/Beautiful control you are locked in right now.mp3',
-    'assets/Audio Bicep Curls/Positive stuff/Spot on you\'re making that weight look easy.mp3',
-    'assets/Audio Bicep Curls/Positive stuff/Textbook form, keep that exact same groove.mp3',
-    'assets/Audio Bicep Curls/Positive stuff/You got this keep breathing keep moving.mp3',
+    'assets/audio_bicep_curls/positive_stuff/absolute_machine_right_now_lets_finish_strong.mp3',
+    'assets/audio_bicep_curls/positive_stuff/beautiful_control_you_are_locked_in_right_now.mp3',
+    'assets/audio_bicep_curls/positive_stuff/spot_on_you\'re_making_that_weight_look_easy.mp3',
+    'assets/audio_bicep_curls/positive_stuff/textbook_form,_keep_that_exact_same_groove.mp3',
+    'assets/audio_bicep_curls/positive_stuff/you_got_this_keep_breathing_keep_moving.mp3',
   ],
 
   CueCategory.bicepTempo: [
-    'assets/Audio Bicep Curls/Tempo/Dont just let it fall, resist the negative.mp3',
-    'assets/Audio Bicep Curls/Tempo/Fight gravity on the way down take 3 full seconds.mp3',
-    'assets/Audio Bicep Curls/Tempo/Perfect pace, keep this exact same rythm.mp3',
-    'assets/Audio Bicep Curls/Tempo/Too fast on the drop control that weight.mp3',
+    'assets/audio_bicep_curls/tempo/dont_just_let_it_fall,_resist_the_negative.mp3',
+    'assets/audio_bicep_curls/tempo/fight_gravity_on_the_way_down_take_3_full_seconds.mp3',
+    'assets/audio_bicep_curls/tempo/perfect_pace,_keep_this_exact_same_rythm.mp3',
+    'assets/audio_bicep_curls/tempo/too_fast_on_the_drop_control_that_weight.mp3',
   ],
 
   // ── LATERAL RAISES ───────────────────────────────────────────────────────
 
   CueCategory.lateralBodySwing: [
-    'assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/if you have to throw your back into it its too heavy.mp3',
-    'assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/lock your core no swinigng the weight up.mp3',
-    'assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/plant your feet and stay totaly rigid.mp3',
-    'assets/Lateral raises Audio/Form correction (Body Movements and Swinging)/stop rocking, keep your torso completely still.mp3',
+    'assets/audio_lateral_raises/form_correction_body_movements_and_swinging/if_you_have_to_throw_your_back_into_it_its_too_heavy.mp3',
+    'assets/audio_lateral_raises/form_correction_body_movements_and_swinging/lock_your_core_no_swinigng_the_weight_up.mp3',
+    'assets/audio_lateral_raises/form_correction_body_movements_and_swinging/plant_your_feet_and_stay_totaly_rigid.mp3',
+    'assets/audio_lateral_raises/form_correction_body_movements_and_swinging/stop_rocking,_keep_your_torso_completely_still.mp3',
   ],
 
   CueCategory.lateralElbowWrist: [
-    'assets/Lateral raises Audio/Form correction (Elbows and Wrists)/imagine pouring water out at the top of the movement like pitcher.mp3',
-    'assets/Lateral raises Audio/Form correction (Elbows and Wrists)/keep a soft bend in your elbows dont lock your arms.mp3',
-    'assets/Lateral raises Audio/Form correction (Elbows and Wrists)/keep elbow perfectly in front of your body not to the side.mp3',
-    'assets/Lateral raises Audio/Form correction (Elbows and Wrists)/lead with elbow no wrist.mp3',
+    'assets/audio_lateral_raises/form_correction_elbows_and_wrists/imagine_pouring_water_out_at_the_top_of_the_movement_like_pitcher.mp3',
+    'assets/audio_lateral_raises/form_correction_elbows_and_wrists/keep_a_soft_bend_in_your_elbows_dont_lock_your_arms.mp3',
+    'assets/audio_lateral_raises/form_correction_elbows_and_wrists/keep_elbow_perfectly_in_front_of_your_body_not_to_the_side.mp3',
+    'assets/audio_lateral_raises/form_correction_elbows_and_wrists/lead_with_elbow_no_wrist.mp3',
   ],
 
   CueCategory.lateralRom: [
-    'assets/Lateral raises Audio/Form correction (Range of Motion)/bring them up until your arms are parallel to the floor.mp3',
-    'assets/Lateral raises Audio/Form correction (Range of Motion)/control the thing dont let the dumbell slam against your leg.mp3',
-    'assets/Lateral raises Audio/Form correction (Range of Motion)/keep constant tension don\'t rest the weights on your hips at the bottom.mp3',
-    'assets/Lateral raises Audio/Form correction (Range of Motion)/stop at shoulder height no need to go any higher.mp3',
-    'assets/Lateral raises Audio/Form correction (Range of Motion)/you\'re stopping short get those dumbless up to shoulder level.mp3',
+    'assets/audio_lateral_raises/form_correction_range_of_motion/bring_them_up_until_your_arms_are_parallel_to_the_floor.mp3',
+    'assets/audio_lateral_raises/form_correction_range_of_motion/control_the_thing_dont_let_the_dumbell_slam_against_your_leg.mp3',
+    'assets/audio_lateral_raises/form_correction_range_of_motion/keep_constant_tension_don\'t_rest_the_weights_on_your_hips_at_the_bottom.mp3',
+    'assets/audio_lateral_raises/form_correction_range_of_motion/stop_at_shoulder_height_no_need_to_go_any_higher.mp3',
+    'assets/audio_lateral_raises/form_correction_range_of_motion/you\'re_stopping_short_get_those_dumbless_up_to_shoulder_level.mp3',
   ],
 
   CueCategory.lateralShoulderTrap: [
-    'assets/Lateral raises Audio/Form correction (Shoulder and Traps)/Keep your shoulders pressed down dont shrug the weight.mp3',
-    'assets/Lateral raises Audio/Form correction (Shoulder and Traps)/Push shoulder down into back pocket.mp3',
-    'assets/Lateral raises Audio/Form correction (Shoulder and Traps)/Relax your neck let your side of shoulders do work.mp3',
-    'assets/Lateral raises Audio/Form correction (Shoulder and Traps)/Your traps are dropping down, let your shoulders do work.mp3',
+    'assets/audio_lateral_raises/form_correction_shoulder_and_traps/keep_your_shoulders_pressed_down_dont_shrug_the_weight.mp3',
+    'assets/audio_lateral_raises/form_correction_shoulder_and_traps/push_shoulder_down_into_back_pocket.mp3',
+    'assets/audio_lateral_raises/form_correction_shoulder_and_traps/relax_your_neck_let_your_side_of_shoulders_do_work.mp3',
+    'assets/audio_lateral_raises/form_correction_shoulder_and_traps/your_traps_are_dropping_down,_let_your_shoulders_do_work.mp3',
   ],
 
   CueCategory.lateralPositivePerfect: [
-    'assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/perfect form your shoulders are completely isolated.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/smooth and controlled exactly what i wnat to see.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/thats a beautiful rep do it again.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/you are doing great, great mind-muscle connection.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Perfect Reps)/your shoulders are on fire lets finish this set.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_perfect_reps/perfect_form_your_shoulders_are_completely_isolated.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_perfect_reps/smooth_and_controlled_exactly_what_i_wnat_to_see.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_perfect_reps/thats_a_beautiful_rep_do_it_again.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_perfect_reps/you_are_doing_great,_great_mind-muscle_connection.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_perfect_reps/your_shoulders_are_on_fire_lets_finish_this_set.mp3',
   ],
 
   CueCategory.lateralPositiveStruggle: [
-    'assets/Lateral raises Audio/Positive reinforcement (Struggle)/almost there dont let your form slip now.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Struggle)/Don\'t drop the weight yet you have more in you.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Struggle)/dont drop your arms yet you have more in you.mp3',
-    'assets/Lateral raises Audio/Positive reinforcement (Struggle)/Keep fighting for height keep fighting for height.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_struggle/almost_there_dont_let_your_form_slip_now.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_struggle/don\'t_drop_the_weight_yet_you_have_more_in_you.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_struggle/dont_drop_your_arms_yet_you_have_more_in_you.mp3',
+    'assets/audio_lateral_raises/positive_reinforcement_struggle/keep_fighting_for_height_keep_fighting_for_height.mp3',
   ],
 
   CueCategory.lateralTempo: [
-    'assets/Lateral raises Audio/Tempo/control the drop fight gravity all the way down.mp3',
-    'assets/Lateral raises Audio/Tempo/dont just let your arms drop resist the fall.mp3',
-    'assets/Lateral raises Audio/Tempo/hold it at the top for a split second.mp3',
-    'assets/Lateral raises Audio/Tempo/perfect pace right there dont speed up.mp3',
+    'assets/audio_lateral_raises/tempo/control_the_drop_fight_gravity_all_the_way_down.mp3',
+    'assets/audio_lateral_raises/tempo/dont_just_let_your_arms_drop_resist_the_fall.mp3',
+    'assets/audio_lateral_raises/tempo/hold_it_at_the_top_for_a_split_second.mp3',
+    'assets/audio_lateral_raises/tempo/perfect_pace_right_there_dont_speed_up.mp3',
   ],
 };
 
@@ -206,218 +206,181 @@ const _assets = <CueCategory, List<String>>{
 // Stems are the filename without the .mp3 extension.
 
 const Map<String, String> _captions = {
-  // Generic start
-  'ge ready':
+  'get_ready':
       'Get ready!',
-  'get to work and have an amazing session':
+  'get_to_work_and_have_an_amazing_session':
       'Let\'s work!',
-  'im ready when you are take a deep breath you\'re going to do phenomenally today':
+  'im_ready_when_you_are_take_a_deep_breath_you\'re_going_to_do_phenomenally_today':
       'Breathe & focus.',
-  'you\'re here, ready and already looking strong lets get to work':
+  'you\'re_here,_ready_and_already_looking_strong_lets_get_to_work':
       'Ready to go!',
-
-  // Generic finish
-  'Done adn dusted you showed up pushed hard and got stronger pehnomenal effort':
+  'done_and_dusted_you_showed_up_pushed_hard_and_got_stronger_pehnomenal_effort':
       'Phenomenal effort!',
-  'final set is in the books you proved exactly how strong you are today outstanding work':
+  'final_set_is_in_the_books_you_proved_exactly_how_strong_you_are_today_outstanding_work':
       'Final set done!',
-  'session complete, you gave it your all and it paid off':
+  'session_complete,_you_gave_it_your_all_and_it_paid_off':
       'Session complete!',
-  'set complete great work drop the weight and rest':
+  'set_complete_great_work_drop_the_weight_and_rest':
       'Set done — rest!',
-  'set complete great work':
+  'set_complete_great_work':
       'Set complete!',
-  'That is how its done you crushed every single set amazing job':
+  'that_is_how_its_done_you_crushed_every_single_set_amazing_job':
       'Crushed it!',
-  'Workout complete you put in the work today be incredibly proud of yourself':
+  'workout_complete_you_put_in_the_work_today_be_incredibly_proud_of_yourself':
       'Workout complete!',
-
-  // Generic positive
-  'i see you working keep that intensity high its paying off':
+  'i_see_you_working_keep_that_intensity_high_its_paying_off':
       'Keep the intensity!',
-  'thats it perfect execution absolute machine':
+  'thats_it_perfect_execution_absolute_machine':
       'Perfect!',
-  'this is where the real progress happens you\'re doing incredible dont quit':
+  'this_is_where_the_real_progress_happens_you\'re_doing_incredible_dont_quit':
       'Don\'t quit!',
-  'you are crushing this keep going you\'re unstoppable':
+  'you_are_crushing_this_keep_going_you\'re_unstoppable':
       'Unstoppable!',
-  'you\'re making it look easy lets go':
+  'you\'re_making_it_look_easy_lets_go':
       'Let\'s go!',
-
-  // Generic form correction
-  'amazing keep breathing keep oxygen there':
+  'amazing_keep_breathing_keep_oxygen_there':
       'Keep breathing.',
-  'beautiful form just control the tempo':
+  'beautiful_form_just_control_the_tempo':
       'Control tempo.',
-  'excellent control, 3 seconds on the way down':
+  'excellent_control,_3_seconds_on_the_way_down':
       '3s down.',
-  'great power, plant your feet flat to build an even stronger base':
+  'great_power,_plant_your_feet_flat_to_build_an_even_stronger_base':
       'Feet flat.',
-  'looking strong squeeze ur glutes to stabilize the body even more':
+  'looking_strong_squeeze_ur_glutes_to_stabilize_the_body_even_more':
       'Squeeze glutes.',
-  'love the energy remember to keep chest up shoulder back':
+  'love_the_energy_remember_to_keep_chest_up_shoulder_back':
       'Chest up.',
-  'perfect rythm right there lock into thta pace ur killing it':
+  'perfect_rythm_right_there_lock_into_thta_pace_ur_killing_it':
       'Lock that rhythm.',
-  'u got the strenght for this breath in and breath out on the way in n out':
+  'u_got_the_strenght_for_this_breath_in_and_breath_out_on_the_way_in_n_out':
       'Breathe.',
-  'you have insane strenght, but if you have to cheat the movement drop the weight and blah blah blah':
+  'you_have_insane_strenght,_but_if_you_have_to_cheat_the_movement_drop_the_weight_and_blah_blah_blah':
       'Drop the weight.',
-  'you\'re doing great keep spine completely neutral ':
+  'you\'re_doing_great_keep_spine_completely_neutral_':
       'Neutral spine.',
-  'You\'re doing great, form slipping, reset and get back to perfect':
+  'you\'re_doing_great,_form_slipping,_reset_and_get_back_to_perfect':
       'Reset your form.',
-  'you\'re moving serious weight slow those muscles down ':
+  'you\'re_moving_serious_weight_slow_those_muscles_down_':
       'Slow down.',
-
-  // Bicep curls – back/body
-  'Lock your code keep your torso completely vertical':
+  'lock_your_code_keep_your_torso_completely_vertical':
       'Torso vertical.',
-  'Use muscle not momentum use your body keep stable':
+  'use_muscle_not_momentum_use_your_body_keep_stable':
       'Muscle not momentum.',
-  'Watch the swinging use your biceps not your back':
+  'watch_the_swinging_use_your_biceps_not_your_back':
       'Biceps only.',
-  'You\'re leaning back to get it up lighten the weight if you need t':
+  'you\'re_leaning_back_to_get_it_up_lighten_the_weight_if_you_need_t':
       'Lighten the weight.',
-
-  // Bicep – elbows
-  'Bend elbows to wrist, dont drift forwards':
+  'bend_elbows_to_wrist,_dont_drift_forwards':
       'Don\'t drift forward.',
-  'Elbow creeping up, lock them in place':
+  'elbow_creeping_up,_lock_them_in_place':
       'Lock the elbows.',
-  'upper arm completely still, only form arm should move':
+  'upper_arm_completely_still,_only_form_arm_should_move':
       'Still upper arm.',
-
-  // Bicep – ROM bottom
-  'Full extension on the way down dont cheat yourself':
+  'full_extension_on_the_way_down_dont_cheat_yourself':
       'Full extension.',
-  'Go all the way down, full stretch at the bottom':
+  'go_all_the_way_down,_full_stretch_at_the_bottom':
       'All the way down.',
-  'Uncurl all the way, let the arms hang before next rep':
+  'uncurl_all_the_way,_let_the_arms_hang_before_next_rep':
       'Let it hang.',
-  'You\'re cutting it short, straighten the arm completely ':
+  'you\'re_cutting_it_short,_straighten_the_arm_completely_':
       'Straighten fully.',
-
-  // Bicep – ROM top
-  'Bring it all the way up and squeeze':
+  'bring_it_all_the_way_up_and_squeeze':
       'Squeeze at top.',
-  'Close that gap at the top, hard squeeze':
+  'close_that_gap_at_the_top,_hard_squeeze':
       'Hard squeeze.',
-  'Don\'t stop halfway, curl it up to the shoulder':
+  'don\'t_stop_halfway,_curl_it_up_to_the_shoulder':
       'Up to shoulder.',
-  'Get that full contraction at the top of the rep':
+  'get_that_full_contraction_at_the_top_of_the_rep':
       'Full contraction.',
-
-  // Bicep – shoulder/wrist
-  'Keep your wrists neutral dont let them curl inwards at the top':
+  'keep_your_wrists_neutral_dont_let_them_curl_inwards_at_the_top':
       'Neutral wrists.',
-  'Keep your shoulders down and relax dont shrug the weight':
+  'keep_your_shoulders_down_and_relax_dont_shrug_the_weight':
       'Shoulders down.',
-  'Relax your neck and shoulders let the biceps do the work':
+  'relax_your_neck_and_shoulders_let_the_biceps_do_the_work':
       'Relax shoulders.',
-
-  // Bicep – last reps
-  'Dont drop that weight you have one more in there':
+  'dont_drop_that_weight_you_have_one_more_in_there':
       'One more!',
-  'Fight for it squeeze it up there':
+  'fight_for_it_squeeze_it_up_there':
       'Fight for it!',
-  'Halfway there, maintain that strict form':
+  'halfway_there,_maintain_that_strict_form':
       'Halfway there.',
-
-  // Bicep – positive
-  'Absolute machine right now lets finish strong':
+  'absolute_machine_right_now_lets_finish_strong':
       'Finish strong!',
-  'Beautiful control you are locked in right now':
+  'beautiful_control_you_are_locked_in_right_now':
       'Locked in!',
-  'Spot on you\'re making that weight look easy':
+  'spot_on_you\'re_making_that_weight_look_easy':
       'Looking easy!',
-  'Textbook form, keep that exact same groove':
+  'textbook_form,_keep_that_exact_same_groove':
       'Textbook form.',
-  'You got this keep breathing keep moving':
+  'you_got_this_keep_breathing_keep_moving':
       'Keep moving!',
-
-  // Bicep – tempo
-  'Dont just let it fall, resist the negative':
+  'dont_just_let_it_fall,_resist_the_negative':
       'Resist the drop.',
-  'Fight gravity on the way down take 3 full seconds':
+  'fight_gravity_on_the_way_down_take_3_full_seconds':
       '3s negative.',
-  'Perfect pace, keep this exact same rythm':
+  'perfect_pace,_keep_this_exact_same_rythm':
       'Stay steady.',
-  'Too fast on the drop control that weight':
+  'too_fast_on_the_drop_control_that_weight':
       'Slow down.',
-
-  // Lateral – body swing
-  'if you have to throw your back into it its too heavy':
+  'if_you_have_to_throw_your_back_into_it_its_too_heavy':
       'Too heavy.',
-  'lock your core no swinigng the weight up':
+  'lock_your_core_no_swinigng_the_weight_up':
       'No swinging.',
-  'plant your feet and stay totaly rigid':
+  'plant_your_feet_and_stay_totaly_rigid':
       'Stay rigid.',
-  'stop rocking, keep your torso completely still':
+  'stop_rocking,_keep_your_torso_completely_still':
       'Still torso.',
-
-  // Lateral – elbow/wrist
-  'imagine pouring water out at the top of the movement like pitcher':
+  'imagine_pouring_water_out_at_the_top_of_the_movement_like_pitcher':
       'Pour the pitcher.',
-  'keep a soft bend in your elbows dont lock your arms':
+  'keep_a_soft_bend_in_your_elbows_dont_lock_your_arms':
       'Soft elbows.',
-  'keep elbow perfectly in front of your body not to the side':
+  'keep_elbow_perfectly_in_front_of_your_body_not_to_the_side':
       'Elbows forward.',
-  'lead with elbow no wrist':
+  'lead_with_elbow_no_wrist':
       'Elbow leads.',
-
-  // Lateral – ROM
-  'bring them up until your arms are parallel to the floor':
+  'bring_them_up_until_your_arms_are_parallel_to_the_floor':
       'Arms parallel.',
-  'control the thing dont let the dumbell slam against your leg':
+  'control_the_thing_dont_let_the_dumbell_slam_against_your_leg':
       'Control the drop.',
-  'keep constant tension don\'t rest the weights on your hips at the bottom':
+  'keep_constant_tension_don\'t_rest_the_weights_on_your_hips_at_the_bottom':
       'Keep tension.',
-  'stop at shoulder height no need to go any higher':
+  'stop_at_shoulder_height_no_need_to_go_any_higher':
       'Shoulder height.',
-  'you\'re stopping short get those dumbless up to shoulder level':
+  'you\'re_stopping_short_get_those_dumbless_up_to_shoulder_level':
       'Get to shoulder.',
-
-  // Lateral – shoulder/trap
-  'Keep your shoulders pressed down dont shrug the weight':
+  'keep_your_shoulders_pressed_down_dont_shrug_the_weight':
       'Don\'t shrug.',
-  'Push shoulder down into back pocket':
+  'push_shoulder_down_into_back_pocket':
       'Shoulders back.',
-  'Relax your neck let your side of shoulders do work':
+  'relax_your_neck_let_your_side_of_shoulders_do_work':
       'Relax neck.',
-  'Your traps are dropping down, let your shoulders do work':
+  'your_traps_are_dropping_down,_let_your_shoulders_do_work':
       'Side delts only.',
-
-  // Lateral – positive perfect
-  'perfect form your shoulders are completely isolated':
+  'perfect_form_your_shoulders_are_completely_isolated':
       'Isolated!',
-  'smooth and controlled exactly what i wnat to see':
+  'smooth_and_controlled_exactly_what_i_wnat_to_see':
       'Smooth & controlled.',
-  'thats a beautiful rep do it again':
+  'thats_a_beautiful_rep_do_it_again':
       'Beautiful rep!',
-  'you are doing great, great mind-muscle connection':
+  'you_are_doing_great,_great_mind-muscle_connection':
       'Mind-muscle!',
-  'your shoulders are on fire lets finish this set':
+  'your_shoulders_are_on_fire_lets_finish_this_set':
       'Shoulders on fire!',
-
-  // Lateral – positive struggle
-  'almost there dont let your form slip now':
+  'almost_there_dont_let_your_form_slip_now':
       'Hold form!',
-  'Don\'t drop the weight yet you have more in you':
+  'don\'t_drop_the_weight_yet_you_have_more_in_you':
       'Don\'t drop!',
-  'dont drop your arms yet you have more in you':
+  'dont_drop_your_arms_yet_you_have_more_in_you':
       'Keep fighting!',
-  'Keep fighting for height keep fighting for height':
+  'keep_fighting_for_height_keep_fighting_for_height':
       'Fight for height!',
-
-  // Lateral – tempo
-  'control the drop fight gravity all the way down':
+  'control_the_drop_fight_gravity_all_the_way_down':
       'Fight gravity.',
-  'dont just let your arms drop resist the fall':
+  'dont_just_let_your_arms_drop_resist_the_fall':
       'Resist the fall.',
-  'hold it at the top for a split second':
+  'hold_it_at_the_top_for_a_split_second':
       'Hold at top.',
-  'perfect pace right there dont speed up':
+  'perfect_pace_right_there_dont_speed_up':
       'Steady pace.',
 };
 
