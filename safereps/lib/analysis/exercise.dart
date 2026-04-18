@@ -60,8 +60,8 @@ const romanianDeadlift = Exercise(
 const bicepCurl = Exercise(
   name: 'Bicep Curl',
   primaryAngle: _elbowAngle,
-  topThreshold: 160,
-  bottomThreshold: 45,
+  topThreshold: 155,  // arms hanging (~160° actual); above this = start position
+  bottomThreshold: 25, // fully curled (~14° measured); below this = top of rep
   cues: [
     'Keep elbows fixed',
     'Full range of motion',
@@ -83,8 +83,8 @@ const overheadPress = Exercise(
 const lateralRaise = Exercise(
   name: 'Lateral Raise',
   primaryAngle: _shoulderAngle,
-  topThreshold: 20,
-  bottomThreshold: 85,
+  topThreshold: 25,   // arms at sides (~13° measured); below this = resting
+  bottomThreshold: 80, // arms raised (~97° measured); above this = top of rep
   cues: [
     'Slight bend in elbows',
     'Raise to shoulder height',

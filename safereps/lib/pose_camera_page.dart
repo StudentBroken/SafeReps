@@ -13,6 +13,8 @@ import 'pose/pose_estimator.dart';
 import 'pose/skeleton_smoother.dart';
 import 'pose_painter.dart';
 import 'analysis/joint_angles.dart';
+import 'analysis/exercise.dart';
+import 'analysis/rep_counter.dart';
 
 class PoseCameraPage extends StatefulWidget {
   const PoseCameraPage({super.key, required this.cameras});
@@ -36,15 +38,12 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   PoseEstimator? _estimator;
   final SkeletonSmoother _smoother = SkeletonSmoother();
 
-  // Resolved after permission is granted (may differ from widget.cameras on
-  // iOS, where availableCameras() returns empty before permission).
   List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
 
   bool _busy = false;
   bool _initializing = false;
 
-  // null = loading, non-null = show error UI
   String? _error;
   bool _errorNeedsSettings = false;
 
@@ -55,6 +54,10 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   final List<DateTime> _frameTimes = [];
   int _fps = 0;
   int _latencyMs = 0;
+
+  Exercise? _activeExercise;
+  RepCounter? _repCounter;
+  RepResult? _repResult;
 
   bool get _supportsPoseDetection =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -103,7 +106,6 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return;
     }
 
-    // Request permission first; on iOS the system dialog only appears once.
     final status = await Permission.camera.request();
     if (status.isPermanentlyDenied || status.isRestricted) {
       _setError(
@@ -117,8 +119,6 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return;
     }
 
-    // On iOS, availableCameras() may return empty before permission is granted.
-    // Re-query now that we have permission.
     var cameras = widget.cameras.isNotEmpty
         ? widget.cameras
         : await _queryCameras();
@@ -205,6 +205,25 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     await _startCamera();
   }
 
+  void _toggleExercise(Exercise exercise) {
+    setState(() {
+      if (_activeExercise == exercise) {
+        _activeExercise = null;
+        _repCounter = null;
+        _repResult = null;
+      } else {
+        _activeExercise = exercise;
+        _repCounter = RepCounter(exercise);
+        _repResult = null;
+      }
+    });
+  }
+
+  void _resetReps() {
+    _repCounter?.reset();
+    if (mounted) setState(() => _repResult = null);
+  }
+
   Future<void> _copyAngles() async {
     final angles = _angles;
     if (_skeletons.isEmpty || angles == null) {
@@ -255,6 +274,12 @@ class _PoseCameraPageState extends State<PoseCameraPage>
         );
         _fps = _frameTimes.length;
         _latencyMs = now.difference(frameStart).inMilliseconds;
+
+        final counter = _repCounter;
+        final angles = _angles;
+        if (counter != null && angles != null) {
+          _repResult = counter.update(angles);
+        }
       });
     } catch (_) {
       // Drop frame.
@@ -312,6 +337,12 @@ class _PoseCameraPageState extends State<PoseCameraPage>
         ],
       ),
       body: _buildBody(),
+      bottomNavigationBar: _ExercisePanel(
+        activeExercise: _activeExercise,
+        repResult: _repResult,
+        onToggle: _toggleExercise,
+        onReset: _resetReps,
+      ),
     );
   }
 
@@ -388,6 +419,203 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     );
   }
 }
+
+// ── Exercise bottom panel ─────────────────────────────────────────────────────
+
+class _ExercisePanel extends StatelessWidget {
+  const _ExercisePanel({
+    required this.activeExercise,
+    required this.repResult,
+    required this.onToggle,
+    required this.onReset,
+  });
+
+  final Exercise? activeExercise;
+  final RepResult? repResult;
+  final ValueChanged<Exercise> onToggle;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    return Container(
+      color: Colors.black87,
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomPadding),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ExerciseTile(
+              exercise: lateralRaise,
+              isActive: activeExercise == lateralRaise,
+              repResult: activeExercise == lateralRaise ? repResult : null,
+              onTap: () => onToggle(lateralRaise),
+              onReset: onReset,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ExerciseTile(
+              exercise: bicepCurl,
+              isActive: activeExercise == bicepCurl,
+              repResult: activeExercise == bicepCurl ? repResult : null,
+              onTap: () => onToggle(bicepCurl),
+              onReset: onReset,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExerciseTile extends StatelessWidget {
+  const _ExerciseTile({
+    required this.exercise,
+    required this.isActive,
+    required this.repResult,
+    required this.onTap,
+    required this.onReset,
+  });
+
+  final Exercise exercise;
+  final bool isActive;
+  final RepResult? repResult;
+  final VoidCallback onTap;
+  final VoidCallback onReset;
+
+  double _progress() {
+    final angle = repResult?.primaryAngle;
+    if (angle == null) return 0;
+    final inverted = exercise.topThreshold < exercise.bottomThreshold;
+    if (inverted) {
+      return ((angle - exercise.topThreshold) /
+              (exercise.bottomThreshold - exercise.topThreshold))
+          .clamp(0.0, 1.0);
+    } else {
+      return ((exercise.topThreshold - angle) /
+              (exercise.topThreshold - exercise.bottomThreshold))
+          .clamp(0.0, 1.0);
+    }
+  }
+
+  String _phaseLabel(RepPhase phase) => switch (phase) {
+        RepPhase.idle => 'get in position',
+        RepPhase.top => 'ready',
+        RepPhase.descending => '↑',
+        RepPhase.bottom => 'hold',
+        RepPhase.ascending => '↓',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final reps = repResult?.totalReps ?? 0;
+    final phase = repResult?.phase;
+    final progress = _progress();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.green.shade900 : Colors.grey.shade900,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? Colors.greenAccent : Colors.grey.shade700,
+            width: isActive ? 1.5 : 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: isActive
+            ? Row(
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 3,
+                          backgroundColor: Colors.white12,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.greenAccent),
+                        ),
+                        Text(
+                          '${(progress * 100).round()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          exercise.name,
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          '$reps',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            height: 1.1,
+                          ),
+                        ),
+                        if (phase != null)
+                          Text(
+                            _phaseLabel(phase),
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18),
+                    color: Colors.white54,
+                    onPressed: onReset,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  const Icon(Icons.play_circle_outline,
+                      color: Colors.white38, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      exercise.name,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+// ── FPS HUD ───────────────────────────────────────────────────────────────────
 
 class _FpsHud extends StatelessWidget {
   const _FpsHud({required this.fps, required this.latencyMs});
