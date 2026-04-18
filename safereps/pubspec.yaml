@@ -67,6 +67,7 @@ flutter:
     - ../assets/Warmup/arm circling wireframe.png
     - ../assets/Warmup/generic chest stretch.png
     - ../assets/Warmup/push up wireframe demo.png
+    - assets/calibration/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

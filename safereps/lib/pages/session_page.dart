@@ -79,6 +79,7 @@ class _SessionPageState extends State<SessionPage>
   DateTime? _lastRepTime;
   int _lastKnownReps = 0;
   String? _notification;
+  bool _notificationIsGood = false;
   Timer? _notificationTimer;
 
   // ── IMU calibration ───────────────────────────────────────────────────────
@@ -91,17 +92,26 @@ class _SessionPageState extends State<SessionPage>
   DateTime? _lastBleTime;
   double _currentRepQuality = 100.0; // quality of last completed rep
 
+  // Sustained-alert deduplication: reset each rep
+  bool _tremorAlertShown = false;
+  bool _swingAlertShown = false;
+
+  // Fatigue override: set to (completedReps + 3) when fatigue detected
+  int? _fatigueRepsTarget;
+
   // ── Derived getters ───────────────────────────────────────────────────────
 
   ExerciseGoal get _currentGoal =>
       widget.goals.exercises[_exerciseIndex];
 
-  double get _repProgress {
-    final goal = _exerciseIndex < widget.goals.exercises.length
-        ? _currentGoal.repsPerSet
-        : 1;
-    return ((_repResult?.totalReps ?? 0) / goal).clamp(0.0, 1.0);
-  }
+  int get _effectiveRepsGoal =>
+      _fatigueRepsTarget ??
+      (_exerciseIndex < widget.goals.exercises.length
+          ? _currentGoal.repsPerSet
+          : 1);
+
+  double get _repProgress =>
+      ((_repResult?.totalReps ?? 0) / _effectiveRepsGoal).clamp(0.0, 1.0);
 
   Exercise get _currentExercise => builtInExercises.firstWhere(
         (e) => e.name == _currentGoal.name,
@@ -198,12 +208,16 @@ class _SessionPageState extends State<SessionPage>
     super.dispose();
   }
 
-  void _showNotification(String message) {
+  void _showNotification(String message, {bool good = false}) {
     _notificationTimer?.cancel();
-    setState(() => _notification = message);
-    _notificationTimer = Timer(const Duration(milliseconds: 2500), () {
-      if (mounted) setState(() => _notification = null);
+    setState(() {
+      _notification = message;
+      _notificationIsGood = good;
     });
+    _notificationTimer = Timer(
+      Duration(milliseconds: good ? 3500 : 2500),
+      () { if (mounted) setState(() => _notification = null); },
+    );
   }
 
   @override
@@ -339,9 +353,11 @@ class _SessionPageState extends State<SessionPage>
             _repResult = counter.update(angles);
             final newReps = _repResult?.totalReps ?? 0;
             if (newReps > _lastKnownReps) {
-              // Rep just completed — save quality, reset tracker.
+              // Rep just completed — save quality, reset tracker + alert flags.
               _currentRepQuality = _formTracker.currentQuality;
               _formTracker.reset();
+              _tremorAlertShown = false;
+              _swingAlertShown = false;
             }
             _lastKnownReps = newReps;
             _checkSetComplete();
@@ -396,10 +412,52 @@ class _SessionPageState extends State<SessionPage>
         : 0.0;
     _lastBleTime = now;
 
-    if (dt > 0 && dt < 1.0) {
-      final profile = imuProfileForExercise(_currentGoal.name);
-      _formTracker.update(data, dt, profile);
-      if (mounted) setState(() {});
+    if (dt <= 0 || dt >= 1.0) return;
+
+    final profile = imuProfileForExercise(_currentGoal.name);
+    _formTracker.update(data, dt, profile);
+
+    // Axis deviations — only during the active portion of a rep.
+    final repPhase = _repResult?.phase;
+    final repActive = repPhase == RepPhase.descending ||
+        repPhase == RepPhase.bottom ||
+        repPhase == RepPhase.ascending;
+    if (repActive) {
+      if (profile.yawLimit != null && data.yaw.abs() > profile.yawLimit!) {
+        _formTracker.flagYawViolation(profile.axisDeductionPct);
+      }
+      if (profile.rollLimit != null && data.roll.abs() > profile.rollLimit!) {
+        _formTracker.flagRollViolation(profile.axisDeductionPct);
+      }
+    }
+
+    // Sustained-tremor alert (fires once per rep when threshold first crossed).
+    if (_formTracker.tremorSustained && !_tremorAlertShown) {
+      _tremorAlertShown = true;
+      _showNotification('Tremor detected — control your movement');
+      _checkFatigue();
+    }
+
+    // Sustained-swing alert.
+    if (_formTracker.swingSustained && !_swingAlertShown) {
+      _swingAlertShown = true;
+      _showNotification('Reduce your swing speed');
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  void _checkFatigue() {
+    if (_fatigueRepsTarget != null) return;
+    final completed = _repResult?.totalReps ?? 0;
+    final remaining = _currentGoal.repsPerSet - completed;
+    if (remaining >= 4) {
+      final stopAt = completed + 3;
+      setState(() => _fatigueRepsTarget = stopAt);
+      _showNotification(
+        'Fatigue detected — finishing at $stopAt reps',
+        good: true,
+      );
     }
   }
 
@@ -486,6 +544,9 @@ class _SessionPageState extends State<SessionPage>
     _currentRepQuality = 100.0;
     _lastKnownReps = 0;
     _lastBleTime = null;
+    _tremorAlertShown = false;
+    _swingAlertShown = false;
+    _fatigueRepsTarget = null;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();
   }
@@ -493,7 +554,7 @@ class _SessionPageState extends State<SessionPage>
   void _checkSetComplete() {
     final result = _repResult;
     if (result == null) return;
-    if (result.totalReps >= _currentGoal.repsPerSet) {
+    if (result.totalReps >= _effectiveRepsGoal) {
       _advanceSession();
     }
   }
@@ -664,8 +725,9 @@ class _SessionPageState extends State<SessionPage>
                       const SizedBox(height: 8),
                       _RepCountPill(
                         reps: _repResult?.totalReps ?? 0,
-                        goal: _currentGoal.repsPerSet,
+                        goal: _effectiveRepsGoal,
                         exerciseName: _currentGoal.name,
+                        fatigue: _fatigueRepsTarget != null,
                       ),
                     ],
                   ),
@@ -691,7 +753,10 @@ class _SessionPageState extends State<SessionPage>
                         : const Offset(0, -0.6),
                     duration: const Duration(milliseconds: 500),
                     curve: Curves.easeInOut,
-                    child: _NotificationBanner(message: _notification ?? ''),
+                    child: _NotificationBanner(
+                      message: _notification ?? '',
+                      isGood: _notificationIsGood,
+                    ),
                   ),
                 ),
               ),
@@ -814,9 +879,24 @@ class _TposeCalibrationOverlay extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: CustomPaint(
-                painter: _TposeSilhouettePainter(color: silhouetteColor),
-                size: Size.infinite,
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Transform.scale(
+                    scale: 1.7,
+                    alignment: Alignment.bottomCenter,
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        silhouetteColor.withValues(alpha: 0.4),
+                        BlendMode.srcATop,
+                      ),
+                      child: Image.asset(
+                        'assets/calibration/calib_image.webp',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             Container(
@@ -863,43 +943,6 @@ class _TposeCalibrationOverlay extends StatelessWidget {
   }
 }
 
-class _TposeSilhouettePainter extends CustomPainter {
-  const _TposeSilhouettePainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height * 0.42;
-    final s = size.height * 0.32; // scale relative to canvas
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Head
-    canvas.drawCircle(Offset(cx, cy - s * 0.48), s * 0.10, paint);
-    // Neck → hip (torso)
-    canvas.drawLine(
-        Offset(cx, cy - s * 0.38), Offset(cx, cy + s * 0.22), paint);
-    // Arms horizontal (T-pose)
-    canvas.drawLine(
-        Offset(cx - s * 0.60, cy - s * 0.14),
-        Offset(cx + s * 0.60, cy - s * 0.14),
-        paint);
-    // Left leg
-    canvas.drawLine(
-        Offset(cx, cy + s * 0.22), Offset(cx - s * 0.22, cy + s * 0.62), paint);
-    // Right leg
-    canvas.drawLine(
-        Offset(cx, cy + s * 0.22), Offset(cx + s * 0.22, cy + s * 0.62), paint);
-  }
-
-  @override
-  bool shouldRepaint(_TposeSilhouettePainter old) => old.color != color;
-}
 
 // ---------------------------------------------------------------------------
 // Session preview sheet
