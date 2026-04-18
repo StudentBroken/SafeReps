@@ -72,3 +72,4 @@ pio device monitor                          # serial monitor
 - **Add a new exercise**: define joint-angle thresholds, key landmarks, rep state machine — keep the rules engine declarative, no per-exercise hardcoded if-chains.
 - **Keep `PosePainter` framework-agnostic**: it should not import ML Kit types directly — convert to an internal `Skeleton` model so swapping detectors is one file.
 - **Don't regress the camera lifecycle**: on Android, always `stopImageStream()` before `dispose()`, null the controller field before awaiting disposal, and handle `inactive`/`paused` lifecycle events. Hot reload doesn't reliably release native camera handles — hot-restart when in doubt.
+- **Debug Copy Format**: The "Copy" button in the camera view exports a compressed string: `pose_angles: lk:175,rk:?,... deg` where `lk=left knee`, `rk=right knee`, `lh/rh=hip`, `le/re=elbow`, `ls/rs=shoulder`. `?` means low confidence (< 0.1).
