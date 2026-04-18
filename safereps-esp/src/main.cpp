@@ -51,20 +51,21 @@ float prevLax = 0, prevLay = 0, prevLaz = 0;
 float hpx = 0, hpy = 0, hpz = 0;
 float tremorScore = 0;
 
-// ─── Arm-swing detection (100 Hz, wrist-mounted) ─────────────────────────────
-// Band-pass on pitch gyro (gy) isolates arm-swing arc (0.8–3 Hz).
-// On the wrist, forward arm swing = positive pitch angular velocity.
+// ─── Cheat-swing detection (100 Hz, wrist-mounted) ───────────────────────────
+// Detects momentum/gravitational swinging: the dumbbell swings like a pendulum
+// (driven by gravity/inertia) rather than being lifted by muscle force.
 //
-//  HP stage: fc=0.8 Hz → RC=0.1989 s → α=RC/(RC+dt)=0.952  (removes DC + slow reps)
-//  LP stage: fc=3.0 Hz → RC=0.0531 s → α=RC/(RC+dt)=0.842  (removes tremor + noise)
-//  Cascade HP then LP = band-pass 0.8–3 Hz.
-static constexpr float kSwingHpAlpha  = 0.952f;
-static constexpr float kSwingLpAlpha  = 0.842f;
-static constexpr float kSwingEmaAlpha = 0.05f;   // slow EMA, τ≈200 ms
-float swingGyHp  = 0;   // HP filter state (pitch gyro)
-float swingGyBp  = 0;   // LP-of-HP = band-pass output
-float prevGy     = 0;   // previous raw gy (°/s) for HP difference term
-float swingScore = 0;   // EMA of |band-pass|, in °/s
+// Physics: during a pendulum swing the forearm is near free-fall, so the
+// gravity-compensated linear acceleration is close to zero even though angular
+// velocity is high.  A controlled rep requires real muscle force → large linear
+// accel even at the same angular speed.
+//
+//   cheatScore = |gy| / (|linear_accel| + kCheatEps)
+//   Units: (°/s) / g  — rises sharply when spinning fast with no muscle force.
+//   Typical values: rest ≈ 0, controlled curl ≈ 30–80, cheat swing ≈ 200–800.
+static constexpr float kCheatEps      = 0.05f;  // g — prevents divide-by-zero
+static constexpr float kCheatEmaAlpha = 0.05f;  // slow EMA, τ≈200 ms
+float swingScore = 0;   // EMA of cheat ratio (°/s per g)
 
 // ─── Zero offsets (runtime, not persisted) ───────────────────────────────────
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
@@ -334,8 +335,8 @@ void loop() {
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
         float rawYaw   = ypr[0] * 180.0f / M_PI;
-        float rawPitch = ypr[1] * 180.0f / M_PI;
-        float rawRoll  = ypr[2] * 180.0f / M_PI;
+        float rawPitch = ypr[2] * 180.0f / M_PI; // Swapped for 90deg mount
+        float rawRoll  = ypr[1] * 180.0f / M_PI; // Swapped for 90deg mount
 
         // Wraparound-safe EMA (takes shortest arc through ±180° boundary)
         smoothYaw   = emaAngle(smoothYaw,   rawYaw,   alpha);
@@ -351,9 +352,9 @@ void loop() {
         int16_t rax, ray, raz, rgx, rgy, rgz;
         mpu.getMotion6(&rax, &ray, &raz, &rgx, &rgy, &rgz);
 
-        // Gravity-compensated linear acceleration in g.
-        float lax = rax / 16384.0f - gravity.x;
-        float lay = ray / 16384.0f - gravity.y;
+        // Gravity-compensated linear acceleration in g (swapped for 90deg mount).
+        float lax = ray / 16384.0f - gravity.y;
+        float lay = rax / 16384.0f - gravity.x;
         float laz = raz / 16384.0f - gravity.z;
 
         // ── Tremor: HP on linear accel >5 Hz ────────────────────────────────
@@ -365,14 +366,12 @@ void loop() {
         float tremorMag = sqrtf(hpx*hpx + hpy*hpy + hpz*hpz);
         tremorScore = kTremorAlpha * tremorMag + (1.0f - kTremorAlpha) * tremorScore;
 
-        // ── Arm swing: band-pass on pitch gyro 0.8–3 Hz ─────────────────────
-        float gy = rgy / 131.0f;  // °/s (already read via getMotion6)
-        swingGyHp = kSwingHpAlpha * (swingGyHp + gy - prevGy);  // HP stage
-        swingGyBp = kSwingLpAlpha * swingGyBp + (1.0f - kSwingLpAlpha) * swingGyHp; // LP stage
-        prevGy = gy;
-
-        float swingMag = fabsf(swingGyBp);
-        swingScore = kSwingEmaAlpha * swingMag + (1.0f - kSwingEmaAlpha) * swingScore;
+        // ── Cheat-swing: ratio of angular speed to muscle-generated force ────
+        // Near-zero linear_accel during a gravity/momentum swing (pendulum mode)
+        // means the muscle isn't doing work — cheatRaw spikes regardless of speed.
+        float linearMag = sqrtf(lax*lax + lay*lay + laz*laz);
+        float cheatRaw  = fabsf(rgx / 131.0f) / (linearMag + kCheatEps);
+        swingScore = kCheatEmaAlpha * cheatRaw + (1.0f - kCheatEmaAlpha) * swingScore;
 
         // ── 10 Hz: BLE send ──────────────────────────────────────────────────
         if (streamData) {
@@ -393,7 +392,7 @@ void loop() {
                     "\"tremor\":%.3f,\"swing\":%.1f,\"batt\":%.2f}\n",
                     finalYaw, finalPitch, finalRoll,
                     lax, lay, laz,
-                    rgx / 131.0f, rgy / 131.0f, rgz / 131.0f,
+                    rgy / 131.0f, rgx / 131.0f, rgz / 131.0f, // Swapped
                     tremorScore, swingScore,
                     batteryVoltage
                 );

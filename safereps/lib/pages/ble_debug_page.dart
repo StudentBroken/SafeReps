@@ -653,33 +653,34 @@ class _DataPanel extends StatelessWidget {
   }
 }
 
-// ─── Swing indicator ─────────────────────────────────────────────────────────
+// ─── Cheat-swing indicator ────────────────────────────────────────────────────
+// Score = |angular_rate| / |linear_accel|  (°/s per g).
+// Low = muscle is doing work (controlled rep).
+// High = forearm in free pendulum — gravity/momentum is doing the lifting.
 
 class _SwingIndicator extends StatelessWidget {
   const _SwingIndicator({required this.score});
   final double score;
 
-  // Full-bar at ~80 °/s (vigorous arm swing)
-  static const _kMax = 80.0;
+  // Full bar at 400 (°/s)/g — well into cheat territory.
+  static const _kMax = 400.0;
 
   String get _label {
-    if (score < 5)  return 'Still';
-    if (score < 20) return 'Gentle';
-    if (score < 45) return 'Swinging';
-    return 'Active';
+    if (score < 30)  return 'Controlled';
+    if (score < 100) return 'Borderline';
+    return 'SWINGING';
   }
 
   Color get _color {
-    if (score < 5)  return AppColors.textLight;
-    if (score < 20) return const Color(0xFF5AC8FA);
-    if (score < 45) return const Color(0xFF34C759);
-    return AppColors.pinkBright;
+    if (score < 30)  return const Color(0xFF34C759);  // green — good
+    if (score < 100) return const Color(0xFFFF9500);  // orange — watch out
+    return const Color(0xFFFF3B30);                   // red — cheat swing
   }
 
   IconData get _icon {
-    if (score < 5)  return Icons.accessibility_new_rounded;
-    if (score < 20) return Icons.directions_walk_rounded;
-    return Icons.directions_run_rounded;
+    if (score < 30)  return Icons.check_circle_outline_rounded;
+    if (score < 100) return Icons.warning_amber_rounded;
+    return Icons.priority_high_rounded;
   }
 
   @override
@@ -695,7 +696,7 @@ class _SwingIndicator extends StatelessWidget {
             children: [
               Icon(_icon, color: _color, size: 16),
               const SizedBox(width: 6),
-              const Text('SWING',
+              const Text('FORM',
                   style: TextStyle(
                       color: AppColors.textLight,
                       fontSize: 10,
@@ -710,7 +711,7 @@ class _SwingIndicator extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   fontSize: 22)),
           const SizedBox(height: 2),
-          Text('${score.toStringAsFixed(1)} °/s',
+          Text('ratio ${score.toStringAsFixed(0)}',
               style: const TextStyle(
                   color: AppColors.textMid,
                   fontSize: 11,
