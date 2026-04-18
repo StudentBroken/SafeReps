@@ -59,7 +59,10 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive) {
+
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _controller = null;
+      if (mounted) setState(() {});
       c.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _startCamera();
@@ -127,7 +130,10 @@ class _PoseCameraPageState extends State<PoseCameraPage>
             : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
-      if (!mounted) {
+      final lifecycleState = WidgetsBinding.instance.lifecycleState;
+      if (!mounted ||
+          lifecycleState == AppLifecycleState.inactive ||
+          lifecycleState == AppLifecycleState.paused) {
         await controller.dispose();
         return;
       }
