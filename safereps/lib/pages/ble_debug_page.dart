@@ -16,7 +16,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
   final _ble = BleService();
 
   // ── Firmware filter params (sent via BLE when changed) ──────────────────────
-  double _tremorHpAlpha  = 0.761; // HP cutoff: higher α = only faster jitter passes
+  double _tremorHpAlpha  = 0.600; // HP cutoff: higher α = only faster jitter passes
   double _tremorEmaAlpha = 0.08;  // tremor EMA smoothing
   double _cheatEps       = 0.05;  // g — muscle-force floor (div-by-zero guard)
   double _cheatEmaAlpha  = 0.05;  // cheat-score smoothing
@@ -25,8 +25,8 @@ class _BleDebugPageState extends State<BleDebugPage> {
   double _tremorNone     = 0.02;  // g — below = no tremor
   double _tremorMild     = 0.06;  // g — below = mild
   double _tremorMod      = 0.12;  // g — below = moderate; above = high
-  double _formBorderline = 30.0;  // ratio below = controlled form
-  double _formSwing      = 100.0; // ratio above = cheating
+  double _formBorderline = 13.9;  // ratio below = controlled form
+  double _formSwing      = 15.4;  // ratio above = cheating
 
   bool _tuningOpen = false;
 
@@ -686,16 +686,16 @@ class _TuningPanel extends StatelessWidget {
             label: 'Form controlled→borderline',
             hint: 'Ratio below this = controlled movement',
             value: formBorderline,
-            min: 5, max: 200, divisions: 39,
-            format: (v) => v.toStringAsFixed(0),
+            min: 5, max: 30, divisions: 250,
+            format: (v) => v.toStringAsFixed(1),
             onChanged: onFormBorderline,
           ),
           _ParamSlider(
             label: 'Form borderline→swinging',
             hint: 'Ratio above this = gravitational swing detected',
             value: formSwing,
-            min: 20, max: 500, divisions: 48,
-            format: (v) => v.toStringAsFixed(0),
+            min: 5, max: 30, divisions: 250,
+            format: (v) => v.toStringAsFixed(1),
             onChanged: onFormSwing,
           ),
         ],
@@ -936,7 +936,7 @@ class _FormIndicator extends StatelessWidget {
               style: TextStyle(
                   color: _color, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 2),
-          Text('ratio ${score.toStringAsFixed(0)}',
+          Text('ratio ${score.toStringAsFixed(1)}',
               style: const TextStyle(
                   color: AppColors.textMid, fontSize: 11,
                   fontWeight: FontWeight.w600)),

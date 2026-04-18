@@ -88,6 +88,7 @@ class _MainShellState extends State<MainShell> {
               right: 0,
               child: _FloatingNav(
                 index: _index,
+                controller: _pc,
                 onTap: _onNavTap,
                 sysBottom: mq.padding.bottom,
               ),
@@ -112,11 +113,13 @@ const _kNavItems = [
 class _FloatingNav extends StatelessWidget {
   const _FloatingNav({
     required this.index,
+    required this.controller,
     required this.onTap,
     required this.sysBottom,
   });
 
   final int index;
+  final PageController controller;
   final ValueChanged<int> onTap;
   final double sysBottom;
 
@@ -176,7 +179,11 @@ class _FloatingNav extends StatelessWidget {
               // ── Layer 2.5: sliding highlight bubble ───────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _NavBubble(index: index, isIOS: isIOS),
+                child: _NavBubble(
+                  index: index,
+                  controller: controller,
+                  isIOS: isIOS,
+                ),
               ),
 
               // ── Layer 3: nav items ────────────────────────────────────────
@@ -343,8 +350,14 @@ class _LiquidGlassPainter extends CustomPainter {
 }
 
 class _NavBubble extends StatelessWidget {
-  const _NavBubble({required this.index, required this.isIOS});
+  const _NavBubble({
+    required this.index,
+    required this.controller,
+    required this.isIOS,
+  });
+
   final int index;
+  final PageController controller;
   final bool isIOS;
 
   @override
@@ -353,10 +366,23 @@ class _NavBubble extends StatelessWidget {
         ? const Color(0x50FFFFFF)
         : const Color(0x35D6176E);
 
-    return AnimatedAlign(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutBack,
-      alignment: Alignment(-1.0 + (index * 1.0), 0),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        double page = index.toDouble();
+        if (controller.hasClients) {
+          try {
+            page = controller.page ?? index.toDouble();
+          } catch (_) {
+            // .page can throw if not yet laid out
+          }
+        }
+
+        return Align(
+          alignment: Alignment(-1.0 + (page * 1.0), 0),
+          child: child,
+        );
+      },
       child: FractionallySizedBox(
         widthFactor: 1 / _kNavItems.length,
         child: Center(
