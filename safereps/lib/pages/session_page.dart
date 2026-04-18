@@ -2113,64 +2113,41 @@ class _ExerciseReportCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Form intensity bar (right-side live feedback)
+// Form intensity pill (right-side live feedback)
 // ---------------------------------------------------------------------------
 
 class _FormIntensityBar extends StatelessWidget {
   const _FormIntensityBar({required this.intensity});
   final double intensity; // 0–1
 
+  static Color _colorFor(double t) {
+    if (t < 0.5) {
+      return Color.lerp(const Color(0xFF4CAF50), const Color(0xFFFFC107), t * 2)!;
+    } else {
+      return Color.lerp(const Color(0xFFFFC107), const Color(0xFFE53935), (t - 0.5) * 2)!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: SizedBox(
-        width: 12,
-        height: 140,
-        child: CustomPaint(
-          painter: _IntensityBarPainter(intensity: intensity),
-        ),
+    final color = _colorFor(intensity.clamp(0.0, 1.0));
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 14,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.45),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
       ),
     );
   }
-}
-
-class _IntensityBarPainter extends CustomPainter {
-  const _IntensityBarPainter({required this.intensity});
-  final double intensity;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Background track.
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = Colors.white12,
-    );
-
-    if (intensity <= 0) return;
-
-    final fillH = size.height * intensity.clamp(0.0, 1.0);
-    final fillTop = size.height - fillH;
-
-    // Gradient fill: green (bottom) → yellow → red (top).
-    canvas.drawRect(
-      Rect.fromLTWH(0, fillTop, size.width, fillH),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [
-            Color(0xFF4CAF50), // green — smooth movement
-            Color(0xFFFFC107), // yellow — borderline
-            Color(0xFFE53935), // red — too fast / swinging
-          ],
-          stops: [0.0, 0.55, 1.0],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_IntensityBarPainter old) => old.intensity != intensity;
 }
 
 class _IssueChip extends StatelessWidget {
