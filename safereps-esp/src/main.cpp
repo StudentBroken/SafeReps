@@ -44,7 +44,8 @@ float smoothYaw   = 0, smoothPitch = 0, smoothRoll = 0;
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
 
 // Control
-bool streamData = false;
+bool streamData        = false;
+bool calibrateRequested = false;
 
 // Battery
 float         batteryVoltage   = 0;
@@ -81,11 +82,8 @@ void parseCommand(String command) {
         rollOffset  = smoothRoll;
         bleSend("{\"status\":\"Zeroed current position\"}");
     } else if (command == "CALIBRATE") {
+        calibrateRequested = true;
         bleSend("{\"status\":\"Calibrating... keep IMU static.\"}");
-        mpu.CalibrateAccel(6);
-        mpu.CalibrateGyro(6);
-        mpu.PrintActiveOffsets();
-        bleSend("{\"status\":\"Calibration complete\"}");
     } else if (command.startsWith("DAMPING ")) {
         float newAlpha = command.substring(8).toFloat();
         if (newAlpha > 0.0f && newAlpha <= 1.0f) {
@@ -221,6 +219,16 @@ void loop() {
     if (Serial.available()) {
         String cmd = Serial.readStringUntil('\n');
         parseCommand(cmd);
+    }
+
+    // Deferred calibration: runs here in the Arduino task so NimBLE's task
+    // stays unblocked and the BLE connection survives the ~5 s blocking call.
+    if (calibrateRequested) {
+        calibrateRequested = false;
+        mpu.CalibrateAccel(6);
+        mpu.CalibrateGyro(6);
+        mpu.PrintActiveOffsets();
+        bleSend("{\"status\":\"Calibration complete\"}");
     }
 
     if (!dmpReady) return;
