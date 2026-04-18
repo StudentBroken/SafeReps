@@ -148,7 +148,7 @@ class SettingsPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                   const SizedBox(height: 14),
                   const Divider(height: 1, color: Color(0x18000000)),
                   const SizedBox(height: 14),
                   // Sliders
@@ -191,6 +191,15 @@ class SettingsPage extends StatelessWidget {
                     onChanged: coach.setStrictness,
                     leftLabel: 'Relaxed',
                     rightLabel: 'Strict',
+                  ),
+                  // Caption size — mapped 10–26pt → 0–1
+                  _CoachSlider(
+                    icon: Icons.format_size_rounded,
+                    label: 'Caption Size',
+                    value: (coach.captionSize - 10) / 16,
+                    onChanged: (v) => coach.setCaptionSize(10 + v * 16),
+                    leftLabel: 'Small',
+                    rightLabel: 'Large',
                     isLast: true,
                   ),
                 ],

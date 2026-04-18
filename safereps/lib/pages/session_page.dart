@@ -123,9 +123,10 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
 
   // ── Voice coach ───────────────────────────────────────────────────────────
   late final VoiceCoachService _coach;
-  // Cooldown to avoid firing cues on every BLE tick
-  DateTime? _lastCueFiredAt;
-  static const _cueCooldown = Duration(milliseconds: 1500);
+  // Per-category cooldowns — prevents one cue type blocking a totally different one.
+  final Map<CueCategory, DateTime> _lastCueFiredAt = {};
+  static const _correctionCooldown = Duration(milliseconds: 2000);
+  static const _positiveCooldown   = Duration(milliseconds: 4000);
   // Arms-not-straight alert dedup
   DateTime? _armsNotStraightLastAt;
 
@@ -703,12 +704,18 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     if (_formTracker.tremorSustained && !_tremorAlertShown) {
       _tremorAlertShown = true;
       _showNotification('Tremor detected — control your movement');
-      // Swing / stability correction
-      if (_currentGoal.name.contains('Curl')) {
-        _fireCoachCue(CueCategory.bicepBackBody, correction: true);
-      } else {
-        _fireCoachCue(CueCategory.lateralBodySwing, correction: true);
-      }
+      final isCurl = _currentGoal.name.contains('Curl');
+      // Body/stability cue (existing)
+      _fireCoachCue(
+        isCurl ? CueCategory.bicepBackBody : CueCategory.lateralBodySwing,
+        correction: true,
+      );
+      // Generic form correction fires separately — different category, own cooldown
+      _fireCoachCue(CueCategory.genericFormCorrection, correction: true);
+      // Motivation to push through the last reps
+      _fireCoachCue(
+        isCurl ? CueCategory.bicepLastRepsMotiv : CueCategory.lateralPositiveStruggle,
+      );
       _checkFatigue();
     }
 
@@ -716,11 +723,13 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     if (_formTracker.swingSustained && !_swingAlertShown) {
       _swingAlertShown = true;
       _showNotification('Reduce your swing speed');
-      if (_currentGoal.name.contains('Curl')) {
-        _fireCoachCue(CueCategory.bicepBackBody, correction: true);
-      } else {
-        _fireCoachCue(CueCategory.lateralBodySwing, correction: true);
-      }
+      final isCurl = _currentGoal.name.contains('Curl');
+      _fireCoachCue(
+        isCurl ? CueCategory.bicepBackBody : CueCategory.lateralBodySwing,
+        correction: true,
+      );
+      // Also fire a generic form correction on a separate cooldown
+      _fireCoachCue(CueCategory.genericFormCorrection, correction: true);
     }
 
     if (mounted) setState(() {});
@@ -731,13 +740,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   /// Play a correction cue, respecting a cooldown to avoid spamming.
   void _fireCoachCue(CueCategory cat, {bool correction = false}) {
     final now = DateTime.now();
-    if (_lastCueFiredAt != null &&
-        now.difference(_lastCueFiredAt!) < _cueCooldown) {
-      return;
-    }
-    _lastCueFiredAt = now;
+    final cooldown = correction ? _correctionCooldown : _positiveCooldown;
+    final last = _lastCueFiredAt[cat];
+    if (last != null && now.difference(last) < cooldown) return;
+    _lastCueFiredAt[cat] = now;
     if (correction) {
-      // Corrections always fire — bypass the frequency/positive gates.
       _coach.playMandatory(cat);
     } else {
       _coach.play(cat);
@@ -1224,7 +1231,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
                                         textAlign: TextAlign.left,
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 14,
+                                          fontSize: settings.captionSize,
                                           fontWeight: FontWeight.w600,
                                           height: 1.3,
                                           letterSpacing: 0.1,
