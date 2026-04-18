@@ -16,14 +16,14 @@ class _BleDebugPageState extends State<BleDebugPage> {
   // ── Firmware filter params ──────────────────────
   double _mountAngle     = 0.0;   // degrees — rotates pitch/roll axes to match wrist mount
   double _tremorHpAlpha  = 0.600;
-  double _tremorEmaAlpha = 0.08;
+  double _tremorEmaAlpha = 0.02;
   double _cheatEps       = 0.05;
   double _cheatEmaAlpha  = 0.05;
 
   // ── Flutter-side classification thresholds ──────────────────
-  double _tremorNone     = 0.02;
-  double _tremorMild     = 0.06;
-  double _tremorMod      = 0.12;
+  double _tremorNone     = 0.05;
+  double _tremorMild     = 0.15;
+  double _tremorMod      = 0.25;
   double _formBorderline = 13.9;
   double _formSwing      = 15.4;
 
@@ -675,7 +675,7 @@ class _TuningPanel extends StatelessWidget {
             label: 'Tremor EMA α',
             hint: 'Higher = score reacts faster (less smooth)',
             value: tremorEmaAlpha,
-            min: 0.01, max: 0.50, divisions: 49,
+            min: 0.002, max: 0.50, divisions: 99,
             format: (v) => v.toStringAsFixed(3),
             onChanged: onTremorEma,
           ),

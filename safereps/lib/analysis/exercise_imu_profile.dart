@@ -40,7 +40,7 @@ class ExerciseImuProfile {
 // yawLimit=25°: arm drifts >25° forward/backward → poor form.
 // rollLimit=15°: forearm pronation/supination >15° → poor form.
 const lateralRaiseImuProfile = ExerciseImuProfile(
-  tremorThreshold: 0.030,  // ← tune: g, lower = more sensitive
+  tremorThreshold: 0.080,  // ← tune: g, lower = more sensitive
   swingThreshold: 28.0,    // ← tune: °/s, lower = more sensitive
   tremorDeductionRate: 8.0,
   swingDeductionRate: 5.0,
@@ -52,7 +52,7 @@ const lateralRaiseImuProfile = ExerciseImuProfile(
 
 // pitchDeviationLimit=20°: forearm pronates/supinates beyond 20° from neutral → poor form.
 const bicepCurlImuProfile = ExerciseImuProfile(
-  tremorThreshold: 0.040,  // ← tune: g, lower = more sensitive
+  tremorThreshold: 0.100,  // ← tune: g, lower = more sensitive
   swingThreshold: 30.0,    // ← tune: °/s, lower = more sensitive
   tremorDeductionRate: 8.0,
   swingDeductionRate: 5.0,

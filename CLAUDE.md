@@ -66,8 +66,8 @@ Defined declaratively in `lib/analysis/exercise.dart`. Active exercises: **Later
 - **Linear accel**: `getMotion6()` at 100 Hz → subtract DMP gravity unit-vector → gravity-free accel in g (avoids `dmpGetLinearAccel` 8192/16384 scale bug)
 - **Tremor detection** (100 Hz onboard):
   - 1st-order HP filter, f_c ≈ 5 Hz, α = 0.761 → isolates jitter above exercise-rep frequency
-  - L2 magnitude → slow EMA (α = 0.08, τ ≈ 125 ms) → `tremorScore` in g
-  - Thresholds: < 0.02 g = none, 0.02–0.06 g = mild, 0.06–0.12 g = moderate, > 0.12 g = high
+  - L2 magnitude → slow EMA (α = 0.02, τ ≈ 500 ms) → `tremorScore` in g
+  - Thresholds: < 0.05 g = none, 0.05–0.15 g = mild, 0.15–0.25 g = moderate, > 0.25 g = high
 - **BLE send rate**: 10 Hz; supervision timeout 10 s (requested on connect via `updateConnParams`)
 - **Battery**: ADC GPIO1, 100k/100k divider, ×0.90389 correction factor, sampled every 5 s
 
@@ -146,5 +146,5 @@ pio device monitor                          # serial monitor
 - **Theme changes**: always update `AppColors`/`AppTheme` in `lib/theme.dart` — never hardcode colors inline.
 - **BLE commands**: always run calibration deferred (flag in `loop()`, not in BLE RX callback) to avoid blocking NimBLE's task. Disable DMP before `CalibrateAccel/Gyro`, re-enable + `resetFIFO` after.
 - **Linear accel scale**: use `getMotion6()` / 16384 − gravity vector. Do NOT use `dmpGetLinearAccel` — it hardcodes 8192 (±4 g scale) causing a 2× error on the Z axis.
-- **Tremor thresholds**: < 0.02 g none, 0.02–0.06 g mild, 0.06–0.12 g moderate, > 0.12 g high. Full bar = 0.3 g in `_TremorCard`.
+- **Tremor thresholds**: < 0.05 g none, 0.05–0.15 g mild, 0.15–0.25 g moderate, > 0.25 g high. Full bar = 0.3 g in `_TremorCard`. Exercise profiles: lateral raise 0.080 g, bicep curl 0.100 g.
 
