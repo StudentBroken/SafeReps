@@ -126,6 +126,15 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   DateTime? _lastCueFiredAt;
   static const _cueCooldown = Duration(milliseconds: 3500);
 
+  // ROM tracking: min/max primary angle seen during the current rep
+  double _repMinAngle = double.infinity;
+  double _repMaxAngle = double.negativeInfinity;
+  CueCategory? _pendingRomCue;
+
+  // Streak + last-reps-motivation gate
+  int _cleanRepStreak = 0;
+  bool _lastRepsMotivFired = false;
+
   // Form / notification state
   bool _isPoseValid = true;
   DateTime? _lastFullyInFrameTime;
@@ -450,6 +459,13 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             final newReps = _repResult?.totalReps ?? 0;
             final newPhase = _repResult?.phase;
 
+            // Track angle extremes for post-rep ROM analysis.
+            final primaryAngle = _repResult?.primaryAngle;
+            if (primaryAngle != null) {
+              if (primaryAngle < _repMinAngle) _repMinAngle = primaryAngle;
+              if (primaryAngle > _repMaxAngle) _repMaxAngle = primaryAngle;
+            }
+
             // Reset IMU gate when a new rep begins (top → descending).
             if (prevPhase == RepPhase.top &&
                 newPhase == RepPhase.descending) {
@@ -460,6 +476,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               final imuOk = !_bleConnected || _imuRepConfirmed;
               if (imuOk) {
                 _confirmedReps++;
+                _pendingRomCue = _evaluateRomCue(_repMaxAngle, _repMinAngle);
                 final repResult = _formTracker.finish();
                 _currentRepQuality = repResult.quality;
                 if (_exerciseIndex < _exerciseSummaries.length) {
@@ -468,6 +485,8 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               } else {
                 _incompleteRepPending = true;
               }
+              _repMinAngle = double.infinity;
+              _repMaxAngle = double.negativeInfinity;
               _formTracker.reset();
               _tremorAlertShown = false;
               _swingAlertShown = false;
@@ -496,7 +515,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         });
       }
 
-      // Notifications
+      // Strategic coach cues + notifications
       if (_phase == _Phase.active) {
         if (!newIsPoseValid && prevIsPoseValid) {
           _showNotification('Keep all limbs in frame!');
@@ -506,18 +525,52 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
           final repDuration = _lastRepTime != null
               ? now.difference(_lastRepTime!).inMilliseconds
               : 9999;
+          bool correctionFired = false;
+
+          // 1. Tempo — fires first; fastest tactile feedback.
           if (repDuration < 800) {
             _showNotification('Slow down — control the movement');
-            // Tempo correction – pick exercise-specific cue
             if (_currentGoal.name.contains('Curl')) {
               _fireCoachCue(CueCategory.bicepTempo, correction: true);
             } else {
               _fireCoachCue(CueCategory.lateralTempo, correction: true);
             }
-          } else {
-            // Good rep – play positive cue
-            _maybePlayPositive();
+            correctionFired = true;
+            _cleanRepStreak = 0;
           }
+
+          // 2. ROM correction — only when tempo was fine.
+          if (!correctionFired) {
+            final romCue = _pendingRomCue;
+            _pendingRomCue = null;
+            if (romCue != null) {
+              _fireCoachCue(romCue, correction: true);
+              correctionFired = true;
+              _cleanRepStreak = 0;
+            }
+          } else {
+            _pendingRomCue = null;
+          }
+
+          // 3. Positive / motivation — only when no correction this rep.
+          if (!correctionFired) {
+            _cleanRepStreak++;
+            final remaining = _effectiveRepsGoal - _confirmedReps;
+
+            if (remaining > 0 && remaining <= 3 && !_lastRepsMotivFired) {
+              // Last 3 reps push — fires once per set.
+              _lastRepsMotivFired = true;
+              if (_currentGoal.name.contains('Curl')) {
+                _fireCoachCue(CueCategory.bicepLastRepsMotiv);
+              } else {
+                _fireCoachCue(CueCategory.lateralPositiveStruggle);
+              }
+            } else if (_cleanRepStreak % 3 == 0) {
+              // Positive every 3rd consecutive clean rep.
+              _maybePlayPositive();
+            }
+          }
+
           _lastRepTime = now;
         }
       }
@@ -553,15 +606,31 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         repPhase == RepPhase.bottom ||
         repPhase == RepPhase.ascending;
     if (repActive) {
+      final isCurl = _currentGoal.name.contains('Curl');
       if (profile.yawLimit != null && data.yaw.abs() > profile.yawLimit!) {
         _formTracker.flagYawViolation(profile.axisDeductionPct);
+        // Yaw = arm drifting out of plane → elbow/alignment cue
+        _fireCoachCue(
+          isCurl ? CueCategory.bicepElbows : CueCategory.lateralElbowWrist,
+          correction: true,
+        );
       }
       if (profile.rollLimit != null && data.roll.abs() > profile.rollLimit!) {
         _formTracker.flagRollViolation(profile.axisDeductionPct);
+        // Roll = forearm/wrist rotation → shoulder/wrist cue
+        _fireCoachCue(
+          isCurl ? CueCategory.bicepShoulderWrist : CueCategory.lateralShoulderTrap,
+          correction: true,
+        );
       }
       if (profile.pitchDeviationLimit != null &&
           data.pitch.abs() > profile.pitchDeviationLimit!) {
         _formTracker.flagPitchViolation(profile.axisDeductionPct);
+        // Pitch deviation = elbow drift (curl) or shoulder shrug (lateral)
+        _fireCoachCue(
+          isCurl ? CueCategory.bicepElbows : CueCategory.lateralShoulderTrap,
+          correction: true,
+        );
       }
     }
 
@@ -641,6 +710,24 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
         good: true,
       );
     }
+  }
+
+  /// Returns a ROM correction cue if the rep's angle range was insufficient.
+  /// [maxAngle] and [minAngle] are the extremes seen during the rep.
+  CueCategory? _evaluateRomCue(double maxAngle, double minAngle) {
+    if (maxAngle == double.negativeInfinity || minAngle == double.infinity) {
+      return null;
+    }
+    final name = _currentGoal.name;
+    if (name.contains('Curl')) {
+      // Bicep curl: top ~155° (curled), bottom ~25° (extended)
+      if (maxAngle < 140) return CueCategory.bicepRomTop;    // didn't curl enough
+      if (minAngle > 40)  return CueCategory.bicepRomBottom; // didn't extend enough
+    } else {
+      // Lateral raise: top ~25° (shoulder height), bottom ~80° (at side)
+      if (minAngle > 40) return CueCategory.lateralRom; // didn't raise high enough
+    }
+    return null;
   }
 
   /// Sets _imuRepConfirmed when pitch confirms the rep peak was reached.
@@ -747,6 +834,12 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _confirmedReps = 0;
     _imuRepConfirmed = false;
     _incompleteRepPending = false;
+    _repMinAngle = double.infinity;
+    _repMaxAngle = double.negativeInfinity;
+    _pendingRomCue = null;
+    _cleanRepStreak = 0;
+    _lastRepsMotivFired = false;
+    _lastCueFiredAt = null;
     if (_bleConnected) _bleWasConnected = true;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();

@@ -12,13 +12,13 @@ import 'pages/settings_page.dart';
 import 'theme.dart';
 
 // Floating pill height (content only, safe-area bottom added separately).
-const double _kPillH = 60.0;
+const double _kPillH = 76.0;
 
 // Extra bottom margin between pill and safe-area edge.
 const double _kPillBottomMargin = 14.0;
 
 // Horizontal inset so the pill floats inside the screen edges.
-const double _kPillHInset = 26.0;
+const double _kPillHInset = 12.0;
 
 /// Bottom padding pages should add to their scroll content so the last item
 /// clears the floating nav pill. Does NOT include the system safe-area inset
@@ -377,8 +377,8 @@ class _NavBubble extends StatelessWidget {
         widthFactor: 1 / _kNavItems.length,
         child: Center(
           child: Container(
-            width: 64,
-            height: 44,
+            width: 72,
+            height: 56,
             decoration: BoxDecoration(
               color: subPillColor,
               borderRadius: BorderRadius.circular(20),
