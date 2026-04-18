@@ -41,7 +41,7 @@ class ExerciseImuProfile {
 // rollLimit=15°: forearm pronation/supination >15° → poor form.
 const lateralRaiseImuProfile = ExerciseImuProfile(
   tremorThreshold: 0.030,  // ← tune: g, lower = more sensitive
-  swingThreshold: 25.0,    // ← tune: °/s, lower = more sensitive
+  swingThreshold: 28.0,    // ← tune: °/s, lower = more sensitive
   tremorDeductionRate: 8.0,
   swingDeductionRate: 5.0,
   tremorHpAlpha: 0.500,
