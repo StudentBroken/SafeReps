@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart'
     show InputImageRotation, InputImageRotationValue;
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../analysis/exercise.dart';
 import '../analysis/exercise_imu_profile.dart';
@@ -350,6 +351,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     widget.ble?.addListener(_onBleData);
     _initCamera();
     _startPreviewCountdown();
+    WakelockPlus.enable();
   }
 
   @override
@@ -374,6 +376,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     widget.ble?.removeListener(_onBleData);
     widget.ble?.stopImuStream();
     if (_coachInitialized) _coach.dispose();
+    WakelockPlus.disable();
     super.dispose();
   }
 
