@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart' show cameras;
 import '../models/goals_model.dart';
+import '../pages/ble_debug_page.dart';
 import '../pose_camera_page.dart';
 import '../theme.dart';
 import '../widgets/glass_card.dart';
@@ -100,6 +101,34 @@ class SettingsPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => PoseCameraPage(cameras: cameras),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 56, color: Color(0x18000000)),
+                  ListTile(
+                    leading: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD6EAFF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.bluetooth_rounded,
+                          color: AppColors.textDark, size: 18),
+                    ),
+                    title: const Text('BLE Debug',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textDark)),
+                    subtitle: const Text('Connect & stream ESP32 IMU data',
+                        style: TextStyle(
+                            color: AppColors.textMid, fontSize: 12)),
+                    trailing: const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.beige),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BleDebugPage(),
                       ),
                     ),
                   ),

@@ -49,5 +49,9 @@
 	<string>SafeReps uses the camera to analyze your body pose and provide form feedback during workouts.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is required by the camera plugin even when audio is disabled.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>SafeReps uses Bluetooth to connect to the ESP32 IMU sensor worn during workouts.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>SafeReps uses Bluetooth to connect to the ESP32 IMU sensor worn during workouts.</string>
 </dict>
 </plist>

@@ -50,6 +50,7 @@ class _MainShellState extends State<MainShell> {
       model: _goals,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        extendBody: true,
         // No bottomNavigationBar — the nav is a Stack overlay inside the body,
         // which lets BackdropFilter see and blur the live page content behind it.
         body: MediaQuery(
@@ -73,6 +74,7 @@ class _MainShellState extends State<MainShell> {
                 child: _FloatingNav(
                   index: _index,
                   onTap: (i) => setState(() => _index = i),
+                  sysBottom: mq.padding.bottom,
                 ),
               ),
             ],
@@ -94,17 +96,21 @@ const _kNavItems = [
 ];
 
 class _FloatingNav extends StatelessWidget {
-  const _FloatingNav({required this.index, required this.onTap});
+  const _FloatingNav({
+    required this.index,
+    required this.onTap,
+    required this.sysBottom,
+  });
 
   final int index;
   final ValueChanged<int> onTap;
+  final double sysBottom;
 
   static bool get _isIOS => !kIsWeb && Platform.isIOS;
 
   @override
   Widget build(BuildContext context) {
     final isIOS = _isIOS;
-    final sysBottom = MediaQuery.of(context).padding.bottom;
     final radius = BorderRadius.circular(_kPillH / 2);
 
     return Padding(
