@@ -9,7 +9,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     cameras = await availableCameras();
-  } on CameraException {
+  } catch (_) {
     cameras = const [];
   }
   runApp(const SafeRepsApp());

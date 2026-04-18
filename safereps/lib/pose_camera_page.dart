@@ -35,15 +35,22 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   CameraController? _controller;
   PoseEstimator? _estimator;
   final SkeletonSmoother _smoother = SkeletonSmoother();
+
+  // Resolved after permission is granted (may differ from widget.cameras on
+  // iOS, where availableCameras() returns empty before permission).
+  List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
+
   bool _busy = false;
   bool _initializing = false;
+
+  // null = loading, non-null = show error UI
   String? _error;
+  bool _errorNeedsSettings = false;
 
   List<Skeleton> _skeletons = const [];
   FrameMeta? _frameMeta;
 
-  // FPS tracking.
   final List<DateTime> _frameTimes = [];
   int _fps = 0;
   int _latencyMs = 0;
@@ -55,7 +62,9 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _bootstrap();
+    _bootstrap().catchError((e) {
+      if (mounted) _setError('Startup error: $e');
+    });
   }
 
   @override
@@ -64,6 +73,14 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     _controller?.dispose();
     _estimator?.close();
     super.dispose();
+  }
+
+  void _setError(String msg, {bool needsSettings = false}) {
+    if (!mounted) return;
+    setState(() {
+      _error = msg;
+      _errorNeedsSettings = needsSettings;
+    });
   }
 
   @override
@@ -76,43 +93,70 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       if (mounted) setState(() {});
       c.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      _startCamera();
+      if (_cameras.isNotEmpty) _startCamera();
     }
   }
 
   Future<void> _bootstrap() async {
     if (!_supportsPoseDetection) {
-      setState(() => _error = 'Pose detection requires iOS or Android.');
+      _setError('Pose detection requires iOS or Android.');
       return;
     }
-    if (widget.cameras.isEmpty) {
-      setState(() => _error = 'No cameras available on this device.');
-      return;
-    }
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      setState(() => _error = 'Camera permission denied.');
-      return;
-    }
-    final estimator = MlKitPoseEstimator();
-    try {
-      await estimator.initialize();
-    } catch (e) {
-      setState(() => _error = 'Failed to initialize pose detector: $e');
-      return;
-    }
-    _estimator = estimator;
 
-    _cameraIndex = widget.cameras.indexWhere(
+    // Request permission first; on iOS the system dialog only appears once.
+    final status = await Permission.camera.request();
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      _setError(
+        'Camera access is blocked. Enable it in Settings → Privacy → Camera.',
+        needsSettings: true,
+      );
+      return;
+    }
+    if (!status.isGranted) {
+      _setError('Camera permission denied.');
+      return;
+    }
+
+    // On iOS, availableCameras() may return empty before permission is granted.
+    // Re-query now that we have permission.
+    var cameras = widget.cameras.isNotEmpty
+        ? widget.cameras
+        : await _queryCameras();
+
+    if (cameras.isEmpty) {
+      _setError('No cameras found on this device.');
+      return;
+    }
+    _cameras = cameras;
+    _cameraIndex = _cameras.indexWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
     );
     if (_cameraIndex < 0) _cameraIndex = 0;
 
+    if (_estimator == null) {
+      final estimator = MlKitPoseEstimator();
+      try {
+        await estimator.initialize();
+      } catch (e) {
+        _setError('Failed to initialize pose detector: $e');
+        return;
+      }
+      _estimator = estimator;
+    }
+
     await _startCamera();
   }
 
+  Future<List<CameraDescription>> _queryCameras() async {
+    try {
+      return await availableCameras();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> _startCamera() async {
-    if (_initializing) return;
+    if (_initializing || _cameras.isEmpty) return;
     _initializing = true;
     try {
       final old = _controller;
@@ -130,7 +174,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
         await old.dispose();
       }
 
-      final desc = widget.cameras[_cameraIndex];
+      final desc = _cameras[_cameraIndex];
       final controller = CameraController(
         desc,
         ResolutionPreset.medium,
@@ -150,18 +194,16 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       _controller = controller;
       await controller.startImageStream(_onCameraImage);
       if (mounted) setState(() {});
-    } on CameraException catch (e) {
-      if (mounted) {
-        setState(() => _error = 'Camera error: ${e.description ?? e.code}');
-      }
+    } catch (e) {
+      _setError('Camera error: $e');
     } finally {
       _initializing = false;
     }
   }
 
   Future<void> _switchCamera() async {
-    if (widget.cameras.length < 2 || _initializing) return;
-    _cameraIndex = (_cameraIndex + 1) % widget.cameras.length;
+    if (_cameras.length < 2 || _initializing) return;
+    _cameraIndex = (_cameraIndex + 1) % _cameras.length;
     await _startCamera();
   }
 
@@ -262,7 +304,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
             onPressed: _copyAngles,
             tooltip: 'Copy joint angles',
           ),
-          if (widget.cameras.length > 1)
+          if (_cameras.length > 1)
             IconButton(
               icon: const Icon(Icons.cameraswitch),
               onPressed: _switchCamera,
@@ -288,13 +330,24 @@ class _PoseCameraPageState extends State<PoseCameraPage>
                 style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () {
-                  setState(() => _error = null);
-                  _bootstrap();
-                },
-                child: const Text('Retry'),
-              ),
+              if (_errorNeedsSettings)
+                FilledButton(
+                  onPressed: () => openAppSettings(),
+                  child: const Text('Open Settings'),
+                )
+              else
+                FilledButton(
+                  onPressed: () {
+                    setState(() {
+                      _error = null;
+                      _errorNeedsSettings = false;
+                    });
+                    _bootstrap().catchError((e) {
+                      if (mounted) _setError('Startup error: $e');
+                    });
+                  },
+                  child: const Text('Retry'),
+                ),
             ],
           ),
         ),
