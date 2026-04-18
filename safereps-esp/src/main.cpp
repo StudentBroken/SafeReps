@@ -442,8 +442,8 @@ void loop() {
         float gry = gravity.x * sa + gravity.y * ca;
         // gz unchanged — it's the vertical component.
         // gry drives pitch (arm raise/lower); grx drives roll (side tilt).
-        float rawPitch = atan2f(gry, gravity.z) * 180.0f / (float)M_PI;
-        float rawRoll  = atan2f(grx, gravity.z) * 180.0f / (float)M_PI;
+        float rawPitch = atan2f(gry, sqrtf(grx*grx + gravity.z*gravity.z)) * 180.0f / (float)M_PI;
+        float rawRoll  = atan2f(grx, sqrtf(gry*gry + gravity.z*gravity.z)) * 180.0f / (float)M_PI;
 
         // ── Mount calibration: accumulate gravity samples ────────────────────
         if (mountCalActive) {
