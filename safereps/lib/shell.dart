@@ -11,19 +11,17 @@ import 'pages/goals_page.dart';
 import 'pages/settings_page.dart';
 import 'theme.dart';
 
-// Floating pill height (content only, safe-area bottom added separately).
-const double _kPillH = 76.0;
+// Vertical pill width.
+const double _kPillW = 52.0;
 
-// Extra bottom margin between pill and safe-area edge.
-const double _kPillBottomMargin = 14.0;
+// Vertical inset from top and bottom safe area edges.
+const double _kPillVInset = 80.0;
 
-// Horizontal inset so the pill floats inside the screen edges.
-const double _kPillHInset = 12.0;
+// Right margin from screen edge.
+const double _kPillRightMargin = 12.0;
 
-/// Bottom padding pages should add to their scroll content so the last item
-/// clears the floating nav pill. Does NOT include the system safe-area inset
-/// (SafeArea / MediaQuery.padding.bottom handles that separately).
-const double kNavPillClearance = _kPillH + _kPillBottomMargin + 8;
+/// Right padding pages should add so content clears the vertical nav pill.
+const double kNavPillClearance = _kPillW + _kPillRightMargin + 8;
 
 // ---------------------------------------------------------------------------
 
@@ -72,13 +70,14 @@ class _MainShellState extends State<MainShell> {
             ],
           ),
           Positioned(
+            top: 0,
             bottom: 0,
-            left: 0,
             right: 0,
             child: _FloatingNav(
               index: _index,
               controller: _pc,
               onTap: _onNavTap,
+              sysTop: mq.padding.top,
               sysBottom: mq.padding.bottom,
             ),
           ),
@@ -103,12 +102,14 @@ class _FloatingNav extends StatelessWidget {
     required this.index,
     required this.controller,
     required this.onTap,
+    required this.sysTop,
     required this.sysBottom,
   });
 
   final int index;
   final PageController controller;
   final ValueChanged<int> onTap;
+  final double sysTop;
   final double sysBottom;
 
   static bool get _isIOS => !kIsWeb && Platform.isIOS;
@@ -117,29 +118,31 @@ class _FloatingNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIOS = _isIOS;
     final themeColors = AppTheme.colors(context);
-    final radius = BorderRadius.circular(_kPillH / 2);
+    final radius = BorderRadius.circular(_kPillW / 2);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          _kPillHInset, 0, _kPillHInset, _kPillBottomMargin + sysBottom),
+        0,
+        sysTop + _kPillVInset,
+        _kPillRightMargin,
+        sysBottom + _kPillVInset,
+      ),
       child: Container(
-        height: _kPillH,
+        width: _kPillW,
         decoration: BoxDecoration(
           borderRadius: radius,
           boxShadow: [
-            // Outer diffuse shadow — gives floating feel
             BoxShadow(
               color: Colors.black.withAlpha(isIOS ? 45 : 30),
               blurRadius: isIOS ? 28 : 18,
               spreadRadius: isIOS ? 4 : 2,
-              offset: const Offset(0, 6),
+              offset: const Offset(-4, 6),
             ),
-            // iOS: secondary tight shadow for depth
             if (isIOS)
               BoxShadow(
                 color: Colors.black.withAlpha(20),
                 blurRadius: 8,
-                offset: const Offset(0, 2),
+                offset: const Offset(-2, 2),
               ),
           ],
         ),
@@ -148,16 +151,15 @@ class _FloatingNav extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // ── Layer 1: heavy backdrop blur ──────────────────────────────
+              // ── Layer 1: backdrop blur ────────────────────────────────────
               BackdropFilter(
                 filter: ImageFilter.blur(
                   sigmaX: isIOS ? 48 : 28,
                   sigmaY: isIOS ? 48 : 28,
                 ),
-                // Base fill: near-transparent on iOS, themed tint on Android.
                 child: Container(
                   color: isIOS
-                      ? const Color(0x18FFFFFF)   // almost clear glass
+                      ? const Color(0x18FFFFFF)
                       : Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),
                 ),
               ),
@@ -167,7 +169,7 @@ class _FloatingNav extends StatelessWidget {
 
               // ── Layer 2.5: sliding highlight bubble ───────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: _NavBubble(
                   index: index,
                   controller: controller,
@@ -177,8 +179,8 @@ class _FloatingNav extends StatelessWidget {
 
               // ── Layer 3: nav items ────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
                   children: List.generate(
                     _kNavItems.length,
                     (i) => Expanded(
@@ -369,16 +371,16 @@ class _NavBubble extends StatelessWidget {
         }
 
         return Align(
-          alignment: Alignment(-1.0 + (page * 1.0), 0),
+          alignment: Alignment(0, -1.0 + (page / (_kNavItems.length - 1)) * 2.0),
           child: child,
         );
       },
       child: FractionallySizedBox(
-        widthFactor: 1 / _kNavItems.length,
+        heightFactor: 1 / _kNavItems.length,
         child: Center(
           child: Container(
-            width: 72,
-            height: 56,
+            width: 40,
+            height: 48,
             decoration: BoxDecoration(
               color: subPillColor,
               borderRadius: BorderRadius.circular(20),
