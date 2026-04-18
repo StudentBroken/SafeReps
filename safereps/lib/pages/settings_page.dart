@@ -4,6 +4,7 @@ import '../main.dart' show cameras;
 import '../models/goals_model.dart';
 import '../pages/ble_debug_page.dart';
 import '../pose_camera_page.dart';
+import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 
@@ -13,8 +14,9 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16).copyWith(
+            bottom: 16 + kNavPillClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -3,6 +3,7 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 
 import '../models/goals_model.dart';
+import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 import 'session_page.dart';
@@ -44,7 +45,8 @@ class _DashboardPageState extends State<DashboardPage>
     final model = GoalsScope.of(context); // rebuilds when model notifies
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0).copyWith(
+            bottom: 32 + kNavPillClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

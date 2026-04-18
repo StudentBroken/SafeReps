@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/goals_model.dart';
+import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 
@@ -24,7 +25,8 @@ class _GoalsPageState extends State<GoalsPage> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0).copyWith(
+            bottom: 32 + kNavPillClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

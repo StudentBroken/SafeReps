@@ -20,6 +20,11 @@ const double _kPillBottomMargin = 14.0;
 // Horizontal inset so the pill floats inside the screen edges.
 const double _kPillHInset = 26.0;
 
+/// Bottom padding pages should add to their scroll content so the last item
+/// clears the floating nav pill. Does NOT include the system safe-area inset
+/// (SafeArea / MediaQuery.padding.bottom handles that separately).
+const double kNavPillClearance = _kPillH + _kPillBottomMargin + 8;
+
 // ---------------------------------------------------------------------------
 
 class MainShell extends StatefulWidget {
@@ -42,43 +47,33 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    // Tell SafeArea inside pages to reserve space for the floating pill.
-    final bodyPaddingBottom =
-        mq.padding.bottom + _kPillH + _kPillBottomMargin + 8;
 
     return GoalsScope(
       model: _goals,
       child: Scaffold(
         backgroundColor: AppColors.background,
         extendBody: true,
-        // No bottomNavigationBar — the nav is a Stack overlay inside the body,
-        // which lets BackdropFilter see and blur the live page content behind it.
-        body: MediaQuery(
-          data: mq.copyWith(
-            padding: mq.padding.copyWith(bottom: bodyPaddingBottom),
-          ),
-          child: Stack(
-            children: [
-              IndexedStack(
+        body: Stack(
+          children: [
+            IndexedStack(
+              index: _index,
+              children: const [
+                DashboardPage(),
+                GoalsPage(),
+                SettingsPage(),
+              ],
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _FloatingNav(
                 index: _index,
-                children: const [
-                  DashboardPage(),
-                  GoalsPage(),
-                  SettingsPage(),
-                ],
+                onTap: (i) => setState(() => _index = i),
+                sysBottom: mq.padding.bottom,
               ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _FloatingNav(
-                  index: _index,
-                  onTap: (i) => setState(() => _index = i),
-                  sysBottom: mq.padding.bottom,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

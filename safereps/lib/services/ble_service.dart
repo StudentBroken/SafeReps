@@ -384,6 +384,8 @@ class BleService extends ChangeNotifier {
 
   Future<void> zero() => sendCommand('ZERO');
 
+  Future<void> resetCalibration() => sendCommand('RESET_CAL');
+
   Future<void> calibrate() async {
     isCalibrating = true;
     statusMessage = 'Calibrating… keep device still';

@@ -455,6 +455,15 @@ class _ControlPanel extends StatelessWidget {
                   loading: ble.isCalibrating,
                 ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CtrlButton(
+                  label: 'RESET CAL',
+                  icon: Icons.delete_sweep_rounded,
+                  color: const Color(0xFFFF9500),
+                  onTap: ble.isCalibrating ? null : ble.resetCalibration,
+                ),
+              ),
             ],
           ),
         ],
