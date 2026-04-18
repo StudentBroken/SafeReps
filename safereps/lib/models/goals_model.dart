@@ -128,11 +128,17 @@ class GoalsModel extends ChangeNotifier {
       await prefs.setInt('${_prefix}ex${i}_spd', exercises[i].setsPerDay);
       await prefs.setInt('${_prefix}ex${i}_done', exercises[i].doneToday);
       final tt = exercises[i].tremorThreshold;
-      if (tt != null) await prefs.setInt('${_prefix}ex${i}_tremor', (tt * 1000).round());
-      else await prefs.remove('${_prefix}ex${i}_tremor');
+      if (tt != null) {
+        await prefs.setInt('${_prefix}ex${i}_tremor', (tt * 1000).round());
+      } else {
+        await prefs.remove('${_prefix}ex${i}_tremor');
+      }
       final st = exercises[i].swingThreshold;
-      if (st != null) await prefs.setInt('${_prefix}ex${i}_swing', (st * 10).round());
-      else await prefs.remove('${_prefix}ex${i}_swing');
+      if (st != null) {
+        await prefs.setInt('${_prefix}ex${i}_swing', (st * 10).round());
+      } else {
+        await prefs.remove('${_prefix}ex${i}_swing');
+      }
     }
     await prefs.setInt('${_prefix}session_sets', sessionSets);
     await prefs.setInt('${_prefix}inter_set', interSetRestSecs);
