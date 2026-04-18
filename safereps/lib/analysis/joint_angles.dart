@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import '../pose/skeleton.dart';
 
 /// 2D image-space joint angles in degrees.
-/// Accurate enough for Phase 1 rep counting; swap for MediaPipe world-space
+/// Accurate enough for Phase 1 rep counting; swap for world-space
 /// coords (SkeletonLandmark.z) when 3-D accuracy is needed.
 class JointAngles {
   const JointAngles({

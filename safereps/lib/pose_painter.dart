@@ -92,7 +92,7 @@ class PosePainter extends CustomPainter {
       old.skeletons != skeletons || old.meta != meta;
 }
 
-/// Thin value object so [PosePainter] has no ML Kit / MediaPipe dependency.
+/// Thin value object so [PosePainter] has no ML Kit dependency.
 class FrameMeta {
   const FrameMeta({
     required this.imageSize,

@@ -20,7 +20,7 @@ class FrameMetadata {
 }
 
 /// Backend-agnostic pose estimator interface.
-/// Implementations: [MlKitPoseEstimator], and later [MediaPipePoseEstimator].
+/// Implementations: [MlKitPoseEstimator].
 abstract class PoseEstimator {
   Future<void> initialize();
 
