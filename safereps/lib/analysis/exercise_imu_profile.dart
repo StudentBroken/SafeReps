@@ -45,7 +45,7 @@ const lateralRaiseImuProfile = ExerciseImuProfile(
   tremorDeductionRate: 8.0,
   swingDeductionRate: 5.0,
   tremorHpAlpha: 0.500,
-  yawLimit: 25.0,
+  yawLimit: 40.0,
   rollLimit: 15.0,
   axisDeductionPct: 10.0,
 );

@@ -177,8 +177,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   double _repMaxAngle = double.negativeInfinity;
   CueCategory? _pendingRomCue;
 
-  // Streak + last-reps-motivation gate
-  int _cleanRepStreak = 0;
+  // Last-reps motivation gate (fires once per set when ≤3 reps remain)
   bool _lastRepsMotivFired = false;
 
   // Form / notification state
@@ -210,6 +209,11 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   // ── Session-level form data ───────────────────────────────────────────────
   late final List<_ExerciseSummary> _exerciseSummaries;
   bool _bleWasConnected = false;
+
+  // ── Island triple-tap debug ───────────────────────────────────────────────
+  int _islandTapCount = 0;
+  DateTime? _islandTapLastAt;
+  bool _showImuDebug = false;
 
   // ── IMU-gated rep counting ────────────────────────────────────────────────
   int _confirmedReps = 0;          // reps counted only after IMU confirms movement
@@ -596,7 +600,6 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               _fireCoachCue(CueCategory.lateralTempo, correction: true);
             }
             correctionFired = true;
-            _cleanRepStreak = 0;
           }
 
           // 2. ROM correction — only when tempo was fine.
@@ -606,28 +609,21 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
             if (romCue != null) {
               _fireCoachCue(romCue, correction: true);
               correctionFired = true;
-              _cleanRepStreak = 0;
             }
           } else {
             _pendingRomCue = null;
           }
 
-          // 3. Positive / motivation — only when no correction this rep.
+          // 3. Last-reps motivation — only at the very end of the set.
           if (!correctionFired) {
-            _cleanRepStreak++;
             final remaining = _effectiveRepsGoal - _confirmedReps;
-
             if (remaining > 0 && remaining <= 3 && !_lastRepsMotivFired) {
-              // Last 3 reps push — fires once per set.
               _lastRepsMotivFired = true;
               if (_currentGoal.name.contains('Curl')) {
                 _fireCoachCue(CueCategory.bicepLastRepsMotiv);
               } else {
                 _fireCoachCue(CueCategory.lateralPositiveStruggle);
               }
-            } else if (_cleanRepStreak % 3 == 0) {
-              // Positive every 3rd consecutive clean rep.
-              _maybePlayPositive();
             }
           }
 
@@ -674,6 +670,23 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               _armsNotStraightLastAt = now2;
               _showQuickPopup('Raise higher!');
               _fireCoachCue(CueCategory.lateralRom, correction: true);
+            }
+          }
+
+          // Arms not straight: elbow should be near-extended during lateral raise.
+          final le = angles.leftElbow;
+          final re = angles.rightElbow;
+          final elbowAngle = (le != null && re != null)
+              ? (le + re) / 2
+              : (le ?? re);
+          if (elbowAngle != null && elbowAngle < 140) {
+            final now2 = DateTime.now();
+            final lastArm = _armsNotStraightLastAt;
+            if (lastArm == null ||
+                now2.difference(lastArm) > const Duration(seconds: 4)) {
+              _armsNotStraightLastAt = now2;
+              _showQuickPopup('Straighten your arms!');
+              _fireCoachCue(CueCategory.lateralElbowWrist, correction: true);
             }
           }
         }
@@ -793,23 +806,18 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Decide which positive cue to play based on the current exercise.
-  void _maybePlayPositive() {
-    final name = _currentGoal.name;
-    if (name.contains('Curl')) {
-      _fireCoachCue(CueCategory.bicepPositive);
-    } else if (name.contains('Lateral') || name.contains('Raise')) {
-      // Alternate between perfect-rep praise and generic positive
-      final reps = _repResult?.totalReps ?? 0;
-      final goal = _effectiveRepsGoal;
-      // Last 3 reps → struggle motivation
-      if (goal - reps <= 3) {
-        _fireCoachCue(CueCategory.lateralPositiveStruggle);
-      } else {
-        _fireCoachCue(CueCategory.lateralPositivePerfect);
-      }
+  void _onIslandTap() {
+    final now = DateTime.now();
+    final last = _islandTapLastAt;
+    if (last == null || now.difference(last) > const Duration(milliseconds: 600)) {
+      _islandTapCount = 1;
     } else {
-      _fireCoachCue(CueCategory.genericPositive);
+      _islandTapCount++;
+    }
+    _islandTapLastAt = now;
+    if (_islandTapCount >= 3) {
+      _islandTapCount = 0;
+      setState(() => _showImuDebug = !_showImuDebug);
     }
   }
 
@@ -952,7 +960,6 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     _repMinAngle = double.infinity;
     _repMaxAngle = double.negativeInfinity;
     _pendingRomCue = null;
-    _cleanRepStreak = 0;
     _lastRepsMotivFired = false;
     _lastCueFiredAt = null;
     if (_bleConnected) _bleWasConnected = true;
@@ -1130,7 +1137,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               ),
             ),
 
-          // ── Active: progress ring island ─────────────────────
+          // ── Active: progress ring island (triple-tap → IMU debug) ──
           if (isActive && hasExercise)
             Positioned(
               top: 0,
@@ -1138,14 +1145,28 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: _ProgressIsland(
-                    exerciseName: _currentGoal.name,
-                    setIndex: _setIndex,
-                    totalSets: widget.goals.sessionSets,
-                    progress: _ringProgress,
-                    isFormMode: _bleConnected,
+                  child: GestureDetector(
+                    onTap: _onIslandTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: _ProgressIsland(
+                      exerciseName: _currentGoal.name,
+                      setIndex: _setIndex,
+                      totalSets: widget.goals.sessionSets,
+                      progress: _ringProgress,
+                      isFormMode: _bleConnected,
+                    ),
                   ),
                 ),
+              ),
+            ),
+
+          // ── IMU debug overlay (triple-tap island to toggle) ────
+          if (_showImuDebug && _bleConnected)
+            Positioned(
+              top: 130,
+              left: 12,
+              child: SafeArea(
+                child: _ImuDebugPanel(ble: widget.ble!),
               ),
             ),
 
@@ -2351,41 +2372,90 @@ class _ExerciseReportCard extends StatelessWidget {
               ),
             ],
 
-            // Good + issue aspects with face icons
-            if (hasForm) ...[
-              const SizedBox(height: 12),
+            // ── What went well ───────────────────────────────────
+            if (hasForm && goods.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _SectionLabel(
+                label: 'What went well',
+                icon: Icons.sentiment_satisfied_alt_rounded,
+                color: const Color(0xFF2E7D32),
+              ),
+              const SizedBox(height: 6),
               ...goods.map((a) => _AspectRow(label: a.$1, isGood: true)),
+            ],
+
+            // ── Needs improvement ────────────────────────────────
+            if (hasForm && issues.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _SectionLabel(
+                label: 'Needs improvement',
+                icon: Icons.sentiment_dissatisfied_rounded,
+                color: const Color(0xFFBF360C),
+              ),
+              const SizedBox(height: 6),
               ...issues.map((a) => _AspectRow(label: a.$1, isGood: false)),
             ],
 
-            // Recommendations
+            // ── How to improve ───────────────────────────────────
             if (hasForm && recs.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Divider(color: Colors.black.withAlpha(20), height: 1),
-              const SizedBox(height: 10),
-              ...recs.map(
-                (r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '→  ',
-                        style: TextStyle(
-                          color: AppColors.textLight,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0x12F57C00),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0x40F57C00)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline_rounded,
+                            size: 15, color: Color(0xFFF57C00)),
+                        SizedBox(width: 6),
+                        Text(
+                          'How to improve',
+                          style: TextStyle(
+                            color: Color(0xFFF57C00),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ...recs.map(
+                      (r) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '•  ',
+                              style: TextStyle(
+                                color: Color(0xFFF57C00),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                height: 1.35,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                r,
+                                style: const TextStyle(
+                                  color: AppColors.textDark,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Expanded(
-                        child: Text(
-                          r,
-                          style: const TextStyle(
-                              color: AppColors.textMid, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -2434,6 +2504,36 @@ class _FormIntensityBar extends StatelessWidget {
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 5),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AspectRow extends StatelessWidget {
   const _AspectRow({required this.label, required this.isGood});
   final String label;
@@ -2463,6 +2563,82 @@ class _AspectRow extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IMU debug panel (triple-tap island to toggle)
+// ---------------------------------------------------------------------------
+
+class _ImuDebugPanel extends StatelessWidget {
+  const _ImuDebugPanel({required this.ble});
+  final BleService ble;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ble.latestData;
+
+    Widget row(String label, String value) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(label,
+                    style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600)),
+              ),
+              Text(value,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
+            ],
+          ),
+        );
+
+    String f(double? v, {int d = 2}) =>
+        v == null ? '—' : v.toStringAsFixed(d);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('IMU DEBUG',
+              style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
+          const SizedBox(height: 6),
+          if (data == null)
+            const Text('No data', style: TextStyle(color: Colors.white38, fontSize: 10))
+          else ...[
+            row('Yaw',    '${f(data.yaw)}°'),
+            row('Pitch',  '${f(data.pitch)}°'),
+            row('Roll',   '${f(data.roll)}°'),
+            const SizedBox(height: 4),
+            row('Tremor', '${f(data.tremor, d: 4)} g'),
+            row('aX',     '${f(data.ax, d: 3)} g'),
+            row('aY',     '${f(data.ay, d: 3)} g'),
+            row('aZ',     '${f(data.az, d: 3)} g'),
+            const SizedBox(height: 4),
+            row('gX',     '${f(data.gx, d: 1)}°/s'),
+            row('gY',     '${f(data.gy, d: 1)}°/s'),
+            row('gZ',     '${f(data.gz, d: 1)}°/s'),
+            const SizedBox(height: 4),
+            row('Batt',   '${f(data.batt)} V'),
+          ],
         ],
       ),
     );
