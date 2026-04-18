@@ -30,6 +30,40 @@ import '../widgets/glass_card.dart';
 enum _Phase { preview, imuCalibration, getReady, active, rest, done }
 
 // ---------------------------------------------------------------------------
+// Per-exercise form summary (accumulated across all sets/reps)
+// ---------------------------------------------------------------------------
+
+class _ExerciseSummary {
+  _ExerciseSummary(this.name);
+
+  final String name;
+  final List<RepFormResult> repResults = [];
+
+  bool get hasData => repResults.isNotEmpty;
+
+  double get avgQuality => repResults.isEmpty
+      ? 100.0
+      : repResults.fold(0.0, (s, r) => s + r.quality) / repResults.length;
+
+  bool get hadSustainedTremor => repResults.any((r) => r.sustainedTremor);
+  bool get hadSustainedSwing  => repResults.any((r) => r.sustainedSwing);
+  bool get hadYawIssue   => repResults.any((r) => r.yawViolated);
+  bool get hadRollIssue  => repResults.any((r) => r.rollViolated);
+  bool get hadPitchIssue => repResults.any((r) => r.pitchViolated);
+
+  List<String> get recommendations {
+    final recs = <String>[];
+    if (avgQuality < 70) recs.add('Consider lighter weights for better control.');
+    if (hadSustainedTremor) recs.add('Fatigue detected — rest more between sets.');
+    if (hadSustainedSwing)  recs.add('Slow down — control the movement on both phases.');
+    if (hadYawIssue)  recs.add('Keep your arm in the lateral plane — avoid reaching forward.');
+    if (hadRollIssue) recs.add('Maintain forearm rotation through the lift.');
+    if (hadPitchIssue) recs.add('Keep your forearm supinated throughout the curl.');
+    return recs;
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 class SessionPage extends StatefulWidget {
   const SessionPage({super.key, required this.goals, this.ble});
@@ -98,6 +132,10 @@ class _SessionPageState extends State<SessionPage>
 
   // Fatigue override: set to (completedReps + 3) when fatigue detected
   int? _fatigueRepsTarget;
+
+  // ── Session-level form data ───────────────────────────────────────────────
+  late final List<_ExerciseSummary> _exerciseSummaries;
+  bool _bleWasConnected = false;
 
   // ── Derived getters ───────────────────────────────────────────────────────
 
@@ -191,6 +229,9 @@ class _SessionPageState extends State<SessionPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _exerciseSummaries = widget.goals.exercises
+        .map((e) => _ExerciseSummary(e.name))
+        .toList();
     widget.ble?.addListener(_onBleData);
     _initCamera();
     _startPreviewCountdown();
@@ -353,8 +394,12 @@ class _SessionPageState extends State<SessionPage>
             _repResult = counter.update(angles);
             final newReps = _repResult?.totalReps ?? 0;
             if (newReps > _lastKnownReps) {
-              // Rep just completed — save quality, reset tracker + alert flags.
-              _currentRepQuality = _formTracker.currentQuality;
+              // Rep just completed — record result, reset tracker + alert flags.
+              final repResult = _formTracker.finish();
+              _currentRepQuality = repResult.quality;
+              if (_exerciseIndex < _exerciseSummaries.length) {
+                _exerciseSummaries[_exerciseIndex].repResults.add(repResult);
+              }
               _formTracker.reset();
               _tremorAlertShown = false;
               _swingAlertShown = false;
@@ -428,6 +473,10 @@ class _SessionPageState extends State<SessionPage>
       }
       if (profile.rollLimit != null && data.roll.abs() > profile.rollLimit!) {
         _formTracker.flagRollViolation(profile.axisDeductionPct);
+      }
+      if (profile.pitchDeviationLimit != null &&
+          data.pitch.abs() > profile.pitchDeviationLimit!) {
+        _formTracker.flagPitchViolation(profile.axisDeductionPct);
       }
     }
 
@@ -547,6 +596,7 @@ class _SessionPageState extends State<SessionPage>
     _tremorAlertShown = false;
     _swingAlertShown = false;
     _fatigueRepsTarget = null;
+    if (_bleConnected) _bleWasConnected = true;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();
   }
@@ -830,7 +880,8 @@ class _SessionPageState extends State<SessionPage>
           // ── Done overlay ────────────────────────────────────────────────
           if (_phase == _Phase.done)
             _DoneOverlay(
-              goals: widget.goals,
+              summaries: _exerciseSummaries,
+              bleWasConnected: _bleWasConnected,
               onFinish: () => Navigator.pop(context),
             ),
         ],
@@ -882,9 +933,9 @@ class _TposeCalibrationOverlay extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            bottom: -20, // Nudge slightly below bottom for better "grounding"
+            bottom: -45, // Nudge further down
             child: Transform.scale(
-              scale: 1.85,
+              scale: 1.75, // Marginally smaller
               alignment: Alignment.bottomCenter,
               child: ColorFiltered(
                 colorFilter: ColorFilter.mode(
@@ -1516,76 +1567,111 @@ class _RestSheet extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Done overlay
+// Done overlay — session report
 // ---------------------------------------------------------------------------
 
-class _DoneOverlay extends StatelessWidget {
-  const _DoneOverlay({required this.goals, required this.onFinish});
+Color _qualityColor(double q) {
+  if (q >= 85) return const Color(0xFF4CAF50);
+  if (q >= 65) return const Color(0xFFFFA000);
+  return const Color(0xFFE53935);
+}
 
-  final GoalsModel goals;
+String _qualityLabel(double q) {
+  if (q >= 90) return 'Excellent';
+  if (q >= 75) return 'Good';
+  if (q >= 60) return 'Fair';
+  return 'Keep practicing';
+}
+
+class _DoneOverlay extends StatelessWidget {
+  const _DoneOverlay({
+    required this.summaries,
+    required this.bleWasConnected,
+    required this.onFinish,
+  });
+
+  final List<_ExerciseSummary> summaries;
+  final bool bleWasConnected;
   final VoidCallback onFinish;
+
+  double get _overallQuality {
+    final withData = summaries.where((s) => s.hasData).toList();
+    if (withData.isEmpty) return 100.0;
+    return withData.fold(0.0, (s, e) => s + e.avgQuality) / withData.length;
+  }
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final hasFormData = bleWasConnected && summaries.any((s) => s.hasData);
+    final overallQ = _overallQuality;
 
     return Container(
       color: Colors.black87,
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: primary,
-                ),
-                child: const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 44),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Session Complete!',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              const Text('Great work 💪',
-                  style: TextStyle(color: Colors.white60, fontSize: 15)),
-              const SizedBox(height: 32),
-              GlassCard(
+              // ── Header ──────────────────────────────────────────────────
+              Center(
                 child: Column(
-                  children: goals.exercises
-                      .map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(e.name,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14)),
-                              Text('${e.totalGoal} reps',
-                                  style: const TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 14)),
-                            ],
-                          ),
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: hasFormData
+                            ? _qualityColor(overallQ)
+                            : primary,
+                      ),
+                      child: const Icon(Icons.check_rounded,
+                          color: Colors.white, size: 40),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Session Complete!',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    if (hasFormData) ...[
+                      Text(
+                        '${overallQ.round()}%  ·  ${_qualityLabel(overallQ)}',
+                        style: TextStyle(
+                          color: _qualityColor(overallQ),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
-                      )
-                      .toList(),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Overall form quality',
+                        style: TextStyle(color: Colors.white38, fontSize: 12),
+                      ),
+                    ] else
+                      const Text('Great work!',
+                          style:
+                              TextStyle(color: Colors.white60, fontSize: 15)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
+
+              const SizedBox(height: 28),
+
+              // ── Per-exercise cards ───────────────────────────────────────
+              ...summaries.map((s) => _ExerciseReportCard(
+                    summary: s,
+                    showFormData: bleWasConnected,
+                  )),
+
+              const SizedBox(height: 24),
+
+              // ── Finish ───────────────────────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -1596,6 +1682,216 @@ class _DoneOverlay extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ExerciseReportCard extends StatelessWidget {
+  const _ExerciseReportCard({
+    required this.summary,
+    required this.showFormData,
+  });
+
+  final _ExerciseSummary summary;
+  final bool showFormData;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasForm = showFormData && summary.hasData;
+    final q = summary.avgQuality;
+    final recs = summary.recommendations;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Exercise name + quality badge
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    summary.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (hasForm) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _qualityColor(q).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: _qualityColor(q).withValues(alpha: 0.6)),
+                    ),
+                    child: Text(
+                      '${q.round()}%  ${_qualityLabel(q)}',
+                      style: TextStyle(
+                        color: _qualityColor(q),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ] else
+                  Text(
+                    '${summary.repResults.length} reps',
+                    style:
+                        const TextStyle(color: Colors.white60, fontSize: 13),
+                  ),
+              ],
+            ),
+
+            // Quality bar
+            if (hasForm) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: SizedBox(
+                  height: 5,
+                  child: Stack(children: [
+                    Container(color: Colors.white12),
+                    FractionallySizedBox(
+                      widthFactor: (q / 100).clamp(0.0, 1.0),
+                      child: Container(color: _qualityColor(q)),
+                    ),
+                  ]),
+                ),
+              ),
+            ],
+
+            // Per-rep quality dots
+            if (hasForm && summary.repResults.length > 1) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: summary.repResults.asMap().entries.map((e) {
+                  final repQ = e.value.quality;
+                  return Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _qualityColor(repQ).withValues(alpha: 0.2),
+                      border: Border.all(
+                          color: _qualityColor(repQ).withValues(alpha: 0.7)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${repQ.round()}',
+                        style: TextStyle(
+                          color: _qualityColor(repQ),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+
+            // Issue flags row
+            if (hasForm) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (summary.hadSustainedTremor)
+                    _IssueChip(label: 'Tremor', icon: Icons.vibration_rounded),
+                  if (summary.hadSustainedSwing)
+                    _IssueChip(
+                        label: 'Fast swing',
+                        icon: Icons.speed_rounded),
+                  if (summary.hadYawIssue)
+                    _IssueChip(
+                        label: 'Arm drift',
+                        icon: Icons.rotate_left_rounded),
+                  if (summary.hadRollIssue)
+                    _IssueChip(
+                        label: 'Forearm rotation',
+                        icon: Icons.rotate_right_rounded),
+                  if (summary.hadPitchIssue)
+                    _IssueChip(
+                        label: 'Supination',
+                        icon: Icons.flip_rounded),
+                ],
+              ),
+            ],
+
+            // Recommendations
+            if (hasForm && recs.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(color: Colors.white12, height: 1),
+              const SizedBox(height: 10),
+              ...recs.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('→ ',
+                          style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                      Expanded(
+                        child: Text(
+                          r,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IssueChip extends StatelessWidget {
+  const _IssueChip({required this.label, required this.icon});
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0x33FFA000),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x66FFA000)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: const Color(0xFFFFA000)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFFFA000),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

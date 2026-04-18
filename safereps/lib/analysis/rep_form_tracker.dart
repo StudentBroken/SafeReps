@@ -8,13 +8,15 @@ class RepFormResult {
     required this.sustainedSwing,
     required this.yawViolated,
     required this.rollViolated,
+    required this.pitchViolated,
   });
 
   final double quality;        // 0–100
   final bool sustainedTremor;  // tremor lasted ≥1 s during this rep
   final bool sustainedSwing;   // swing lasted ≥1 s during this rep
   final bool yawViolated;      // arm drifted out of coronal plane
-  final bool rollViolated;     // forearm rotated beyond limit
+  final bool rollViolated;     // forearm rotation (lateral raise) exceeded limit
+  final bool pitchViolated;    // forearm supination (bicep curl) exceeded limit
 }
 
 /// Accumulates per-rep form quality from IMU data.
@@ -27,6 +29,7 @@ class RepFormTracker {
   bool _hadSustainedSwing = false;
   bool _yawViolated = false;
   bool _rollViolated = false;
+  bool _pitchViolated = false;
 
   double get currentQuality => _quality;
 
@@ -73,12 +76,20 @@ class RepFormTracker {
     _quality = (_quality - deductionPct).clamp(0, 100);
   }
 
+  /// One-time pitch (supination) violation deduction (idempotent per rep).
+  void flagPitchViolation(double deductionPct) {
+    if (_pitchViolated) return;
+    _pitchViolated = true;
+    _quality = (_quality - deductionPct).clamp(0, 100);
+  }
+
   RepFormResult finish() => RepFormResult(
         quality: _quality,
         sustainedTremor: _hadSustainedTremor,
         sustainedSwing: _hadSustainedSwing,
         yawViolated: _yawViolated,
         rollViolated: _rollViolated,
+        pitchViolated: _pitchViolated,
       );
 
   void reset() {
@@ -89,5 +100,6 @@ class RepFormTracker {
     _hadSustainedSwing = false;
     _yawViolated = false;
     _rollViolated = false;
+    _pitchViolated = false;
   }
 }

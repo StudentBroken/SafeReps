@@ -1716,7 +1716,7 @@ class _ProperFormViewerDialogState extends State<_ProperFormViewerDialog>
                             ? Image.asset(
                                 widget.exercise.imagePath,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => Container(
+                                errorBuilder: (context, err, st) => Container(
                                   color: primary.withValues(alpha: 0.08),
                                   child: Icon(
                                     Icons.image_not_supported_outlined,
