@@ -60,6 +60,12 @@ float kCheatEps      = 0.05f;   // g — baseline muscle-force floor
 float kCheatEmaAlpha = 0.05f;   // slow EMA, τ≈200 ms
 float swingScore = 0;           // EMA of cheat ratio (°/s per g)
 
+// ─── Mount angle — rotates the horizontal gravity plane to align chip axes ────
+// Compensates for the chip being physically rotated around the vertical axis on
+// the wrist.  Tune via MOUNT_ANGLE <deg> until pitch reads correctly.
+// At 0° the DMP's gravity.x axis is "pitch"; positive rotates towards gravity.y.
+float mountAngle = 0.0f;
+
 // ─── Zero offsets (runtime, not persisted) ───────────────────────────────────
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
 
@@ -215,6 +221,16 @@ void parseCommand(String command) {
             bleSend(buf);
         } else {
             bleSend("{\"status\":\"Invalid CHEAT_EMA (0 < a <= 1)\"}");
+        }
+    } else if (command.startsWith("MOUNT_ANGLE ")) {
+        float v = command.substring(12).toFloat();
+        if (v >= -180.0f && v <= 180.0f) {
+            mountAngle = v;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"status\":\"Mount angle=%.1f deg\"}", mountAngle);
+            bleSend(buf);
+        } else {
+            bleSend("{\"status\":\"Invalid MOUNT_ANGLE (-180 to 180)\"}");
         }
     }
 }
@@ -388,11 +404,21 @@ void loop() {
         // ── Quaternion → orientation ─────────────────────────────────────────
         mpu.dmpGetQuaternion(&q, fifoBuffer);
         mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);  // still used for yaw only
 
-        float rawYaw   = ypr[0] * 180.0f / M_PI;
-        float rawPitch = ypr[2] * 180.0f / M_PI; // Swapped for 90deg mount
-        float rawRoll  = ypr[1] * 180.0f / M_PI; // Swapped for 90deg mount
+        // Yaw: DMP atan2 formula — accurate, immune to mounting rotation.
+        float rawYaw = ypr[0] * 180.0f / M_PI;
+
+        // Pitch/roll: rotate the gravity horizontal plane by mountAngle so the
+        // chip's physical orientation on the wrist aligns with the pitch axis.
+        // atan2 gives full ±180° (vs DMP's atan which compresses near ±90°).
+        float ca  = cosf(mountAngle * (float)M_PI / 180.0f);
+        float sa  = sinf(mountAngle * (float)M_PI / 180.0f);
+        float grx = gravity.x * ca - gravity.y * sa;
+        float gry = gravity.x * sa + gravity.y * ca;
+        // gz unchanged — it's the vertical component.
+        float rawPitch = atan2f(grx, gravity.z) * 180.0f / (float)M_PI;
+        float rawRoll  = atan2f(gry, gravity.z) * 180.0f / (float)M_PI;
 
         // Wraparound-safe EMA (takes shortest arc through ±180° boundary)
         smoothYaw   = emaAngle(smoothYaw,   rawYaw,   alpha);

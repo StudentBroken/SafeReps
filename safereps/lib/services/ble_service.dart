@@ -430,6 +430,9 @@ class BleService extends ChangeNotifier {
   Future<void> setCheatEma(double alpha) =>
       sendCommand('CHEAT_EMA ${alpha.toStringAsFixed(3)}');
 
+  Future<void> setMountAngle(double deg) =>
+      sendCommand('MOUNT_ANGLE ${deg.toStringAsFixed(1)}');
+
   Future<void> calibrate() async {
     isCalibrating = true;
     statusMessage = 'Calibrating… keep device still';

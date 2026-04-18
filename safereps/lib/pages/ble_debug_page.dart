@@ -14,6 +14,7 @@ class BleDebugPage extends StatefulWidget {
 
 class _BleDebugPageState extends State<BleDebugPage> {
   // ── Firmware filter params ──────────────────────
+  double _mountAngle     = 0.0;   // degrees — rotates pitch/roll axes to match wrist mount
   double _tremorHpAlpha  = 0.600;
   double _tremorEmaAlpha = 0.08;
   double _cheatEps       = 0.05;
@@ -75,6 +76,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
               if (_tuningOpen) ...[
                 const SizedBox(height: 12),
                 _TuningPanel(
+                  mountAngle:       _mountAngle,
                   tremorHpAlpha:    _tremorHpAlpha,
                   tremorEmaAlpha:   _tremorEmaAlpha,
                   cheatEps:         _cheatEps,
@@ -84,6 +86,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
                   tremorMod:        _tremorMod,
                   formBorderline:   _formBorderline,
                   formSwing:        _formSwing,
+                  onMountAngle: (v) { setState(() => _mountAngle     = v); ble.setMountAngle(v); },
                   onTremorHp:  (v) { setState(() => _tremorHpAlpha  = v); ble.setTremorHp(v);  },
                   onTremorEma: (v) { setState(() => _tremorEmaAlpha = v); ble.setTremorEma(v); },
                   onCheatEps:  (v) { setState(() => _cheatEps       = v); ble.setCheatEps(v);  },
@@ -564,6 +567,7 @@ class _CalibrationBanner extends StatelessWidget {
 
 class _TuningPanel extends StatelessWidget {
   const _TuningPanel({
+    required this.mountAngle,
     required this.tremorHpAlpha,
     required this.tremorEmaAlpha,
     required this.cheatEps,
@@ -573,6 +577,7 @@ class _TuningPanel extends StatelessWidget {
     required this.tremorMod,
     required this.formBorderline,
     required this.formSwing,
+    required this.onMountAngle,
     required this.onTremorHp,
     required this.onTremorEma,
     required this.onCheatEps,
@@ -584,11 +589,13 @@ class _TuningPanel extends StatelessWidget {
     required this.onFormSwing,
   });
 
+  final double mountAngle;
   final double tremorHpAlpha, tremorEmaAlpha;
   final double cheatEps, cheatEmaAlpha;
   final double tremorNone, tremorMild, tremorMod;
   final double formBorderline, formSwing;
 
+  final ValueChanged<double> onMountAngle;
   final ValueChanged<double> onTremorHp, onTremorEma;
   final ValueChanged<double> onCheatEps, onCheatEma;
   final ValueChanged<double> onTremorNone, onTremorMild, onTremorMod;
@@ -604,6 +611,14 @@ class _TuningPanel extends StatelessWidget {
         children: [
           const _TuneSection('Firmware  ·  sent to device'),
           const SizedBox(height: 10),
+          _ParamSlider(
+            label: 'Mount angle (°)',
+            hint: 'Rotate pitch/roll axes — adjust until pitch reads correctly',
+            value: mountAngle,
+            min: -180, max: 180, divisions: 360,
+            format: (v) => '${v.toStringAsFixed(0)}°',
+            onChanged: onMountAngle,
+          ),
           _ParamSlider(
             label: 'Tremor HP α',
             hint: 'Higher = only faster jitter counted',
