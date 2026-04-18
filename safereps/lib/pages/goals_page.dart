@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../analysis/exercise_imu_profile.dart';
 import '../models/goals_model.dart';
 import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
@@ -50,6 +51,8 @@ class _GoalsPageState extends State<GoalsPage> {
                       model.updateExercise(i, repsPerSet: v),
                   onSetsChanged: (v) =>
                       model.updateExercise(i, setsPerDay: v),
+                  onImuChanged: (tremor, swing) =>
+                      model.updateImuSensitivity(i, tremorThreshold: tremor, swingThreshold: swing),
                 ),
               );
             }),
@@ -327,6 +330,7 @@ class _ExerciseCard extends StatelessWidget {
     required this.onToggle,
     required this.onRepsChanged,
     required this.onSetsChanged,
+    required this.onImuChanged,
   });
 
   final ExerciseGoal exercise;
@@ -335,6 +339,7 @@ class _ExerciseCard extends StatelessWidget {
   final VoidCallback onToggle;
   final ValueChanged<int> onRepsChanged;
   final ValueChanged<int> onSetsChanged;
+  final void Function(double? tremor, double? swing) onImuChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +429,7 @@ class _ExerciseCard extends StatelessWidget {
                     exercise: exercise,
                     onRepsChanged: onRepsChanged,
                     onSetsChanged: onSetsChanged,
+                    onImuChanged: onImuChanged,
                   ),
                 ),
               ] else

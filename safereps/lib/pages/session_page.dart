@@ -207,12 +207,19 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
     return _currentRepQuality / 100.0;
   }
 
+  /// IMU profile for the current exercise, with any per-goal overrides applied.
+  ExerciseImuProfile get _currentImuProfile =>
+      imuProfileForExercise(_currentGoal.name).copyWith(
+        tremorThreshold: _currentGoal.tremorThreshold,
+        swingThreshold: _currentGoal.swingThreshold,
+      );
+
   /// Form intensity 0–1: max of tremor badness and swing badness (2.5× threshold = full bar).
   double get _formIntensity {
     if (!_bleConnected || _phase != _Phase.active) return 0.0;
     final data = widget.ble?.latestData;
     if (data == null) return 0.0;
-    final profile = imuProfileForExercise(_currentGoal.name);
+    final profile = _currentImuProfile;
     final tremorBad = (data.tremor / (profile.tremorThreshold * 2.5)).clamp(0.0, 1.0);
     final swingBad = (data.swing / (profile.swingThreshold * 2.5)).clamp(0.0, 1.0);
     return tremorBad > swingBad ? tremorBad : swingBad;
@@ -596,7 +603,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
 
     if (dt <= 0 || dt >= 1.0) return;
 
-    final profile = imuProfileForExercise(_currentGoal.name);
+    final profile = _currentImuProfile;
     _formTracker.update(data, dt, profile);
     _checkImuRepConfirmation(data);
 
