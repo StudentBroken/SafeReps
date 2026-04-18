@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+/// Platform-agnostic rotation that mirrors InputImageRotation values,
+/// so PosePainter doesn't depend on any ML/pose package directly.
+enum FrameRotation { deg0, deg90, deg180, deg270 }
+
 enum SkeletonJoint {
   nose,
   leftEyeInner, leftEye, leftEyeOuter,

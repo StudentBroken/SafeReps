@@ -1,12 +1,12 @@
 import 'package:camera/camera.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/painting.dart';
 
 import 'skeleton.dart';
 
 export 'skeleton.dart';
 
-/// Coordinate metadata needed by [PosePainter] to map landmark pixel coords
-/// onto the camera preview canvas.
+/// Coordinate metadata passed from the camera controller to the estimator
+/// and forwarded to [PosePainter].
 class FrameMetadata {
   const FrameMetadata({
     required this.imageSize,
@@ -15,7 +15,7 @@ class FrameMetadata {
   });
 
   final Size imageSize;
-  final InputImageRotation rotation;
+  final FrameRotation rotation;
   final CameraLensDirection lensDirection;
 }
 

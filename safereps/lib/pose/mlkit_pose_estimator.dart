@@ -1,11 +1,9 @@
 import 'dart:io' show Platform;
 
 import 'package:camera/camera.dart';
-import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import 'pose_estimator.dart';
-import 'skeleton.dart';
 
 class MlKitPoseEstimator implements PoseEstimator {
   late final PoseDetector _detector;
@@ -43,12 +41,20 @@ class MlKitPoseEstimator implements PoseEstimator {
       bytes: plane.bytes,
       metadata: InputImageMetadata(
         size: meta.imageSize,
-        rotation: meta.rotation,
+        rotation: _toMlRotation(meta.rotation),
         format: format,
         bytesPerRow: plane.bytesPerRow,
       ),
     );
   }
+
+  static InputImageRotation _toMlRotation(FrameRotation r) =>
+      switch (r) {
+        FrameRotation.deg0   => InputImageRotation.rotation0deg,
+        FrameRotation.deg90  => InputImageRotation.rotation90deg,
+        FrameRotation.deg180 => InputImageRotation.rotation180deg,
+        FrameRotation.deg270 => InputImageRotation.rotation270deg,
+      };
 
   static Skeleton _toSkeleton(Pose pose) {
     final joints = <SkeletonJoint, SkeletonLandmark>{};
@@ -83,10 +89,10 @@ class MlKitPoseEstimator implements PoseEstimator {
     PoseLandmarkType.rightElbow:     SkeletonJoint.rightElbow,
     PoseLandmarkType.leftWrist:      SkeletonJoint.leftWrist,
     PoseLandmarkType.rightWrist:     SkeletonJoint.rightWrist,
-    PoseLandmarkType.leftPinkyFinger:  SkeletonJoint.leftPinky,
-    PoseLandmarkType.rightPinkyFinger: SkeletonJoint.rightPinky,
-    PoseLandmarkType.leftIndexFinger:  SkeletonJoint.leftIndex,
-    PoseLandmarkType.rightIndexFinger: SkeletonJoint.rightIndex,
+    PoseLandmarkType.leftPinky:  SkeletonJoint.leftPinky,
+    PoseLandmarkType.rightPinky: SkeletonJoint.rightPinky,
+    PoseLandmarkType.leftIndex:  SkeletonJoint.leftIndex,
+    PoseLandmarkType.rightIndex: SkeletonJoint.rightIndex,
     PoseLandmarkType.leftThumb:      SkeletonJoint.leftThumb,
     PoseLandmarkType.rightThumb:     SkeletonJoint.rightThumb,
     PoseLandmarkType.leftHip:        SkeletonJoint.leftHip,
@@ -97,7 +103,7 @@ class MlKitPoseEstimator implements PoseEstimator {
     PoseLandmarkType.rightAnkle:     SkeletonJoint.rightAnkle,
     PoseLandmarkType.leftHeel:       SkeletonJoint.leftHeel,
     PoseLandmarkType.rightHeel:      SkeletonJoint.rightHeel,
-    PoseLandmarkType.leftToe:        SkeletonJoint.leftFootIndex,
-    PoseLandmarkType.rightToe:       SkeletonJoint.rightFootIndex,
+    PoseLandmarkType.leftFootIndex:  SkeletonJoint.leftFootIndex,
+    PoseLandmarkType.rightFootIndex: SkeletonJoint.rightFootIndex,
   };
 }

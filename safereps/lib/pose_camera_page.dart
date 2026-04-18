@@ -4,9 +4,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart'
+    show InputImageRotation, InputImageRotationValue;
 import 'package:permission_handler/permission_handler.dart';
 
+import 'pose/mlkit_pose_estimator.dart';
+import 'pose/pose_estimator.dart';
 import 'pose_painter.dart';
 
 class PoseCameraPage extends StatefulWidget {
@@ -28,14 +31,13 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   };
 
   CameraController? _controller;
-  PoseDetector? _detector;
+  PoseEstimator? _estimator;
   int _cameraIndex = 0;
   bool _busy = false;
   bool _initializing = false;
   String? _error;
-  List<Pose> _poses = const [];
-  Size? _imageSize;
-  InputImageRotation? _rotation;
+  List<Skeleton> _skeletons = const [];
+  FrameMeta? _frameMeta;
 
   bool get _supportsPoseDetection =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -51,7 +53,7 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
-    _detector?.close();
+    _estimator?.close();
     super.dispose();
   }
 
@@ -59,8 +61,8 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       _controller = null;
       if (mounted) setState(() {});
       c.dispose();
@@ -85,11 +87,10 @@ class _PoseCameraPageState extends State<PoseCameraPage>
       return;
     }
 
-    _detector = PoseDetector(
-      options: PoseDetectorOptions(mode: PoseDetectionMode.stream),
-    );
+    final estimator = MlKitPoseEstimator();
+    await estimator.initialize();
+    _estimator = estimator;
 
-    // Prefer the front camera for early form-feedback testing.
     _cameraIndex = widget.cameras.indexWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
     );
@@ -101,16 +102,12 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   Future<void> _startCamera() async {
     if (_initializing) return;
     _initializing = true;
-
     try {
-      // Tear down the previous controller before swapping references so the
-      // build method never sees a disposed CameraController.
       final old = _controller;
       _controller = null;
       _busy = false;
-      _poses = const [];
-      _imageSize = null;
-      _rotation = null;
+      _skeletons = const [];
+      _frameMeta = null;
       if (mounted) setState(() {});
 
       if (old != null) {
@@ -130,10 +127,10 @@ class _PoseCameraPageState extends State<PoseCameraPage>
             : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
-      final lifecycleState = WidgetsBinding.instance.lifecycleState;
+      final ls = WidgetsBinding.instance.lifecycleState;
       if (!mounted ||
-          lifecycleState == AppLifecycleState.inactive ||
-          lifecycleState == AppLifecycleState.paused) {
+          ls == AppLifecycleState.inactive ||
+          ls == AppLifecycleState.paused) {
         await controller.dispose();
         return;
       }
@@ -156,63 +153,62 @@ class _PoseCameraPageState extends State<PoseCameraPage>
   }
 
   Future<void> _onCameraImage(CameraImage image) async {
-    if (_busy || _detector == null || _controller == null) return;
-    final input = _toInputImage(image, _controller!.description);
-    if (input == null) return;
+    final controller = _controller;
+    final estimator = _estimator;
+    if (_busy || estimator == null || controller == null) return;
+
+    final meta = _buildFrameMeta(image, controller);
+    if (meta == null) return;
 
     _busy = true;
     try {
-      final poses = await _detector!.processImage(input);
+      final skeletons =
+          await estimator.processFrame(image, controller.description, meta);
       if (!mounted) return;
       setState(() {
-        _poses = poses;
-        _imageSize = input.metadata?.size;
-        _rotation = input.metadata?.rotation;
+        _skeletons = skeletons;
+        _frameMeta = FrameMeta(
+          imageSize:     meta.imageSize,
+          rotation:      meta.rotation,
+          lensDirection: meta.lensDirection,
+        );
       });
     } catch (_) {
-      // Drop frame on detector error.
+      // Drop frame.
     } finally {
       _busy = false;
     }
   }
 
-  InputImage? _toInputImage(CameraImage image, CameraDescription camera) {
-    final controller = _controller;
-    if (controller == null) return null;
-
-    InputImageRotation? rotation;
+  FrameMetadata? _buildFrameMeta(CameraImage image, CameraController ctl) {
+    final camera = ctl.description;
+    InputImageRotation? mlRot;
     if (Platform.isIOS) {
-      rotation = InputImageRotationValue.fromRawValue(camera.sensorOrientation);
+      mlRot = InputImageRotationValue.fromRawValue(camera.sensorOrientation);
     } else if (Platform.isAndroid) {
-      var compensation = _orientations[controller.value.deviceOrientation];
-      if (compensation == null) return null;
-      if (camera.lensDirection == CameraLensDirection.front) {
-        compensation = (camera.sensorOrientation + compensation) % 360;
-      } else {
-        compensation =
-            (camera.sensorOrientation - compensation + 360) % 360;
-      }
-      rotation = InputImageRotationValue.fromRawValue(compensation);
+      var comp = _orientations[ctl.value.deviceOrientation];
+      if (comp == null) return null;
+      comp = camera.lensDirection == CameraLensDirection.front
+          ? (camera.sensorOrientation + comp) % 360
+          : (camera.sensorOrientation - comp + 360) % 360;
+      mlRot = InputImageRotationValue.fromRawValue(comp);
     }
-    if (rotation == null) return null;
-
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null) return null;
-    if (Platform.isAndroid && format != InputImageFormat.nv21) return null;
-    if (Platform.isIOS && format != InputImageFormat.bgra8888) return null;
-    if (image.planes.length != 1) return null;
-
-    final plane = image.planes.first;
-    return InputImage.fromBytes(
-      bytes: plane.bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: plane.bytesPerRow,
-      ),
+    if (mlRot == null) return null;
+    final rotation = _toFrameRotation(mlRot);
+    return FrameMetadata(
+      imageSize: Size(image.width.toDouble(), image.height.toDouble()),
+      rotation: rotation,
+      lensDirection: camera.lensDirection,
     );
   }
+
+  static FrameRotation _toFrameRotation(InputImageRotation r) =>
+      switch (r) {
+        InputImageRotation.rotation0deg   => FrameRotation.deg0,
+        InputImageRotation.rotation90deg  => FrameRotation.deg90,
+        InputImageRotation.rotation180deg => FrameRotation.deg180,
+        InputImageRotation.rotation270deg => FrameRotation.deg270,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -250,31 +246,22 @@ class _PoseCameraPageState extends State<PoseCameraPage>
     if (controller == null || !controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final preview = CameraPreview(controller);
-    final rotation = _rotation;
-    final imageSize = _imageSize;
-
+    final meta = _frameMeta;
     return Center(
       child: AspectRatio(
         aspectRatio: 1 / controller.value.aspectRatio,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            preview,
-            if (rotation != null && imageSize != null)
+            CameraPreview(controller),
+            if (meta != null)
               CustomPaint(
-                painter: PosePainter(
-                  poses: _poses,
-                  imageSize: imageSize,
-                  rotation: rotation,
-                  cameraLensDirection: controller.description.lensDirection,
-                ),
+                painter: PosePainter(skeletons: _skeletons, meta: meta),
               ),
             Positioned(
               left: 12,
               bottom: 12,
-              child: _PoseHud(poseCount: _poses.length),
+              child: _PoseHud(count: _skeletons.length),
             ),
           ],
         ),
@@ -284,9 +271,9 @@ class _PoseCameraPageState extends State<PoseCameraPage>
 }
 
 class _PoseHud extends StatelessWidget {
-  const _PoseHud({required this.poseCount});
+  const _PoseHud({required this.count});
 
-  final int poseCount;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +284,7 @@ class _PoseHud extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        poseCount == 0 ? 'No pose detected' : 'Tracking $poseCount pose(s)',
+        count == 0 ? 'No pose detected' : 'Tracking $count pose(s)',
         style: const TextStyle(color: Colors.white, fontSize: 12),
       ),
     );
