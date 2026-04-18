@@ -3,11 +3,9 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 
 import '../models/goals_model.dart';
-import '../services/ble_service.dart';
 import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
-import 'ble_connection_screen.dart';
 import 'session_page.dart';
 
 // ---------------------------------------------------------------------------
@@ -72,6 +70,7 @@ class _DashboardPageState extends State<DashboardPage>
               ),
             ),
             const SizedBox(height: 12),
+
 
             // ── Section 4 header ─────────────────────────────────────────────
             Padding(
@@ -139,9 +138,8 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 32),
 
-            // ── Section 3: pill progress bars (now at bottom) ────────────────
+            // ── Today's Progress Section (Moved) ─────────────────────────────
             _ProgressPillsCard(exercises: model.exercises),
-            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -160,96 +158,11 @@ class _DashHeader extends StatelessWidget {
         : hour < 17
             ? 'Good afternoon'
             : 'Good evening';
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(greeting,
-            style: Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(fontSize: 24)),
-        const _BleConnectionPill(),
-      ],
-    );
-  }
-}
-
-class _BleConnectionPill extends StatelessWidget {
-  const _BleConnectionPill();
-
-  @override
-  Widget build(BuildContext context) {
-    final ble = BleScope.of(context);
-    final state = ble.connectionState;
-    final isConnected = state == BleConnectionState.connected;
-    
-    final voltage = ble.latestData?.batt ?? 0;
-    
-    Color pillColor = Colors.orange;
-    String label = 'connect';
-    IconData icon = Icons.bluetooth_rounded;
-    
-    if (isConnected) {
-      if (voltage > 0 && voltage < 3.6) {
-        pillColor = Colors.red;
-      } else {
-        pillColor = const Color(0xFF34C759); // green
-      }
-      label = voltage > 0 ? '${voltage.toStringAsFixed(2)}V' : 'on';
-      icon = Icons.bluetooth_connected_rounded;
-    } else if (state == BleConnectionState.connecting || state == BleConnectionState.reconnecting) {
-      label = 'linking...';
-      pillColor = Colors.orange.withAlpha(200);
-    }
-    
-    return GestureDetector(
-      onTap: () {
-        showGeneralDialog(
-          context: context,
-          barrierDismissible: true,
-          barrierLabel: 'BLE',
-          barrierColor: Colors.transparent,
-          transitionDuration: const Duration(milliseconds: 400),
-          pageBuilder: (ctx, anim1, anim2) => const BleConnectionScreen(),
-          transitionBuilder: (ctx, anim1, anim2, child) {
-            return FadeTransition(
-              opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOut),
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 1.1, end: 1.0).animate(
-                    CurvedAnimation(parent: anim1, curve: Curves.easeOutBack)),
-                child: child,
-              ),
-            );
-          },
-        );
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: pillColor.withAlpha(isConnected ? 40 : 30),
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: pillColor.withAlpha(120), width: 1.2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: pillColor, size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: pillColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return Text(greeting,
+        style: Theme.of(context)
+            .textTheme
+            .headlineMedium
+            ?.copyWith(fontSize: 24));
   }
 }
 

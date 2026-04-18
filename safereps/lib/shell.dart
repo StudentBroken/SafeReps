@@ -10,7 +10,6 @@ import 'models/goals_model.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/goals_page.dart';
 import 'pages/settings_page.dart';
-import 'services/ble_service.dart';
 import 'theme.dart';
 
 // Floating pill height (content only, safe-area bottom added separately).
@@ -39,7 +38,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
   final _goals = GoalsModel();
-  final _ble = BleService();
   late final PageController _pc = PageController();
 
   @override
@@ -51,7 +49,6 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _pc.dispose();
-    _ble.dispose();
     super.dispose();
   }
 
@@ -69,36 +66,33 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
 
-    return BleScope(
-      ble: _ble,
-      child: GoalsScope(
-        model: _goals,
-        child: Scaffold(
-          backgroundColor: AppColors.background,
-          extendBody: true,
-          body: Stack(
-            children: [
-              PageView(
-                controller: _pc,
-                onPageChanged: (i) => setState(() => _index = i),
-                children: const [
-                  DashboardPage(),
-                  GoalsPage(),
-                  SettingsPage(),
-                ],
+    return GoalsScope(
+      model: _goals,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        extendBody: true,
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pc,
+              onPageChanged: (i) => setState(() => _index = i),
+              children: const [
+                DashboardPage(),
+                GoalsPage(),
+                SettingsPage(),
+              ],
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _FloatingNav(
+                index: _index,
+                onTap: _onNavTap,
+                sysBottom: mq.padding.bottom,
               ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _FloatingNav(
-                  index: _index,
-                  onTap: _onNavTap,
-                  sysBottom: mq.padding.bottom,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

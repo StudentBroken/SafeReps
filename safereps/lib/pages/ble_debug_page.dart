@@ -13,14 +13,20 @@ class BleDebugPage extends StatefulWidget {
 }
 
 class _BleDebugPageState extends State<BleDebugPage> {
+  final _ble = BleService();
+
+  @override
+  void dispose() {
+    _ble.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ble = BleScope.of(context);
-    return ListenableBuilder(
-      listenable: ble,
+    return AnimatedBuilder(
+      animation: _ble,
       builder: (context, _) {
-        final state = ble.connectionState;
+        final state = _ble.connectionState;
         final connected = state == BleConnectionState.connected;
 
         return Scaffold(
@@ -33,7 +39,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
             actions: [
               if (connected)
                 TextButton(
-                  onPressed: ble.disconnect,
+                  onPressed: _ble.disconnect,
                   child: const Text('Disconnect',
                       style: TextStyle(color: AppColors.pinkBright)),
                 ),
@@ -43,21 +49,21 @@ class _BleDebugPageState extends State<BleDebugPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                if (ble.statusMessage != null)
-                  _StatusBanner(ble.statusMessage!),
+                if (_ble.statusMessage != null)
+                  _StatusBanner(_ble.statusMessage!),
 
                 if (state == BleConnectionState.reconnecting) ...[
-                  _ReconnectPanel(ble: ble),
+                  _ReconnectPanel(ble: _ble),
                 ] else if (connected) ...[
-                  _ControlPanel(ble: ble),
-                  if (ble.isCalibrating) ...[
+                  _ControlPanel(ble: _ble),
+                  if (_ble.isCalibrating) ...[
                     const SizedBox(height: 12),
                     const _CalibrationBanner(),
                   ],
                   const SizedBox(height: 12),
-                  _DataPanel(data: ble.latestData),
+                  _DataPanel(data: _ble.latestData),
                 ] else ...[
-                  _ScanPanel(ble: ble),
+                  _ScanPanel(ble: _ble),
                 ],
               ],
             ),

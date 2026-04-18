@@ -26,7 +26,7 @@ class PosePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final jointPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = isPoseValid ? Colors.cyanAccent : Colors.grey.withValues(alpha: 0.5);
+      ..color = isPoseValid ? Colors.cyanAccent : Colors.grey.withOpacity(0.5);
 
     for (final sk in skeletons) {
       for (final (a, b, side) in skeletonBones) {
@@ -133,7 +133,7 @@ class PosePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = _strokeWidth
       ..strokeCap = StrokeCap.round
-      ..color = isValid ? color : Colors.grey.withValues(alpha: 0.3);
+      ..color = isValid ? color : Colors.grey.withOpacity(0.3);
   }
 
   @override

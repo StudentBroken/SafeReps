@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -427,16 +426,3 @@ class BleService extends ChangeNotifier {
 
 // ignore: prefer_void_to_null
 void unawaited(Future<void> future) {}
-
-// ─── BleScope ────────────────────────────────────────────────────────────────
-
-class BleScope extends InheritedNotifier<BleService> {
-  const BleScope({
-    super.key,
-    required BleService ble,
-    required Widget child,
-  }) : super(notifier: ble, child: child);
-
-  static BleService of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<BleScope>()!.notifier!;
-}
