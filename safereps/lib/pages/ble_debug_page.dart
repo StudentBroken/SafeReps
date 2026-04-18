@@ -49,7 +49,6 @@ class _BleDebugPageState extends State<BleDebugPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                // Status banner always shown when there's a message
                 if (_ble.statusMessage != null)
                   _StatusBanner(_ble.statusMessage!),
 
@@ -178,7 +177,6 @@ class _ScanPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Saved device quick-connect card
         if (ble.savedDeviceId != null) ...[
           _SavedDeviceCard(ble: ble),
           const SizedBox(height: 12),
@@ -580,125 +578,108 @@ class _DataPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── Activity indicators (most prominent) ──────────────────────────
+        const _SectionLabel('Activity'),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(child: _SwingIndicator(score: data!.swing)),
+            const SizedBox(width: 10),
+            Expanded(child: _TremorIndicator(score: data!.tremor)),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Orientation ───────────────────────────────────────────────────
         const _SectionLabel('Orientation (°)'),
         const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
-                child: _AngleCard('Yaw', data!.yaw, AppColors.pinkBright)),
+                child: _AngleCard('YAW', data!.yaw, AppColors.pinkBright)),
             const SizedBox(width: 8),
             Expanded(
                 child: _AngleCard(
-                    'Pitch', data!.pitch, const Color(0xFF5AC8FA))),
+                    'PITCH', data!.pitch, const Color(0xFF5AC8FA))),
             const SizedBox(width: 8),
             Expanded(
                 child: _AngleCard(
-                    'Roll', data!.roll, const Color(0xFF34C759))),
+                    'ROLL', data!.roll, const Color(0xFF34C759))),
           ],
         ),
-        const SizedBox(height: 12),
-        const _SectionLabel('Accelerometer (g)'),
+
+        const SizedBox(height: 16),
+
+        // ── Accel + Gyro ──────────────────────────────────────────────────
+        const _SectionLabel('Accelerometer (g)  ·  Gyroscope (°/s)'),
         const SizedBox(height: 6),
         GlassCard(
           borderRadius: 14,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(children: [
-            _AxisChip('X', data!.ax),
-            const SizedBox(width: 8),
-            _AxisChip('Y', data!.ay),
-            const SizedBox(width: 8),
-            _AxisChip('Z', data!.az),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        const _SectionLabel('Gyroscope (°/s)'),
-        const SizedBox(height: 6),
-        GlassCard(
-          borderRadius: 14,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(children: [
-            _AxisChip('X', data!.gx),
-            const SizedBox(width: 8),
-            _AxisChip('Y', data!.gy),
-            const SizedBox(width: 8),
-            _AxisChip('Z', data!.gz),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        const _SectionLabel('Tremor Score'),
-        const SizedBox(height: 6),
-        _TremorCard(score: data!.tremor),
-        const SizedBox(height: 12),
-        const _SectionLabel('Battery'),
-        const SizedBox(height: 6),
-        GlassCard(
-          borderRadius: 14,
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
             children: [
-              Icon(
-                _battIcon(data!.batt),
-                color: _battColor(data!.batt),
-                size: 22,
+              _AxisRow(
+                label: 'Accel',
+                xVal: data!.ax, yVal: data!.ay, zVal: data!.az,
+                unit: 'g',
+                color: const Color(0xFF5AC8FA),
+                maxAbs: 2.0,
               ),
-              const SizedBox(width: 10),
-              Text('${data!.batt.toStringAsFixed(2)} V',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: AppColors.textDark)),
-              const SizedBox(width: 8),
-              Text(_battLabel(data!.batt),
-                  style: TextStyle(
-                      color: _battColor(data!.batt), fontSize: 12,
-                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              const Divider(height: 1, color: Color(0x12000000)),
+              const SizedBox(height: 10),
+              _AxisRow(
+                label: 'Gyro',
+                xVal: data!.gx, yVal: data!.gy, zVal: data!.gz,
+                unit: '°/s',
+                color: const Color(0xFFFF9F0A),
+                maxAbs: 250.0,
+              ),
             ],
           ),
         ),
+
+        const SizedBox(height: 16),
+
+        // ── Battery ───────────────────────────────────────────────────────
+        const _SectionLabel('Battery'),
+        const SizedBox(height: 6),
+        _BatteryCard(voltage: data!.batt),
+
+        const SizedBox(height: 8),
       ],
     );
   }
-
-  IconData _battIcon(double v) {
-    if (v >= 4.0) return Icons.battery_full_rounded;
-    if (v >= 3.6) return Icons.battery_5_bar_rounded;
-    if (v >= 3.3) return Icons.battery_2_bar_rounded;
-    return Icons.battery_alert_rounded;
-  }
-
-  Color _battColor(double v) {
-    if (v >= 3.6) return const Color(0xFF34C759);
-    if (v >= 3.3) return const Color(0xFFFF9500);
-    return const Color(0xFFFF3B30);
-  }
-
-  String _battLabel(double v) {
-    if (v >= 4.0) return 'Full';
-    if (v >= 3.6) return 'Good';
-    if (v >= 3.3) return 'Low';
-    return 'Critical';
-  }
 }
 
-class _TremorCard extends StatelessWidget {
-  const _TremorCard({required this.score});
+// ─── Swing indicator ─────────────────────────────────────────────────────────
+
+class _SwingIndicator extends StatelessWidget {
+  const _SwingIndicator({required this.score});
   final double score;
 
-  // Clamp to [0, 1] for bar width; score above 1 g is extreme.
-  static const _kMax = 0.3; // 0.3 g = full bar (calibrated for exercise use)
-
-  Color get _color {
-    if (score < 0.02) return const Color(0xFF34C759); // none
-    if (score < 0.06) return const Color(0xFFFF9500); // mild
-    return const Color(0xFFFF3B30);                   // significant
-  }
+  // Full-bar at ~80 °/s (vigorous arm swing)
+  static const _kMax = 80.0;
 
   String get _label {
-    if (score < 0.02) return 'None';
-    if (score < 0.06) return 'Mild';
-    if (score < 0.12) return 'Moderate';
-    return 'High';
+    if (score < 5)  return 'Still';
+    if (score < 20) return 'Gentle';
+    if (score < 45) return 'Swinging';
+    return 'Active';
+  }
+
+  Color get _color {
+    if (score < 5)  return AppColors.textLight;
+    if (score < 20) return const Color(0xFF5AC8FA);
+    if (score < 45) return const Color(0xFF34C759);
+    return AppColors.pinkBright;
+  }
+
+  IconData get _icon {
+    if (score < 5)  return Icons.accessibility_new_rounded;
+    if (score < 20) return Icons.directions_walk_rounded;
+    return Icons.directions_run_rounded;
   }
 
   @override
@@ -706,32 +687,40 @@ class _TremorCard extends StatelessWidget {
     final fraction = (score / _kMax).clamp(0.0, 1.0);
     return GlassCard(
       borderRadius: 14,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.vibration_rounded, color: _color, size: 18),
-              const SizedBox(width: 8),
-              Text(_label,
+              Icon(_icon, color: _color, size: 16),
+              const SizedBox(width: 6),
+              const Text('SWING',
                   style: TextStyle(
-                      color: _color,
+                      color: AppColors.textLight,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      fontSize: 14)),
-              const Spacer(),
-              Text('${score.toStringAsFixed(3)} g',
-                  style: const TextStyle(
-                      color: AppColors.textMid,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
+                      letterSpacing: 1.1)),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(_label,
+              style: TextStyle(
+                  color: _color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22)),
+          const SizedBox(height: 2),
+          Text('${score.toStringAsFixed(1)} °/s',
+              style: const TextStyle(
+                  color: AppColors.textMid,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: fraction,
-              minHeight: 8,
+              minHeight: 6,
               backgroundColor: const Color(0x18000000),
               valueColor: AlwaysStoppedAnimation(_color),
             ),
@@ -741,6 +730,78 @@ class _TremorCard extends StatelessWidget {
     );
   }
 }
+
+// ─── Tremor indicator ─────────────────────────────────────────────────────────
+
+class _TremorIndicator extends StatelessWidget {
+  const _TremorIndicator({required this.score});
+  final double score;
+
+  static const _kMax = 0.3; // 0.3 g = full bar
+
+  String get _label {
+    if (score < 0.02) return 'None';
+    if (score < 0.06) return 'Mild';
+    if (score < 0.12) return 'Moderate';
+    return 'High';
+  }
+
+  Color get _color {
+    if (score < 0.02) return AppColors.textLight;
+    if (score < 0.06) return const Color(0xFFFF9500);
+    return const Color(0xFFFF3B30);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = (score / _kMax).clamp(0.0, 1.0);
+    return GlassCard(
+      borderRadius: 14,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.vibration_rounded, color: _color, size: 16),
+              const SizedBox(width: 6),
+              const Text('TREMOR',
+                  style: TextStyle(
+                      color: AppColors.textLight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(_label,
+              style: TextStyle(
+                  color: _color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22)),
+          const SizedBox(height: 2),
+          Text('${score.toStringAsFixed(3)} g',
+              style: const TextStyle(
+                  color: AppColors.textMid,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 6,
+              backgroundColor: const Color(0x18000000),
+              valueColor: AlwaysStoppedAnimation(_color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Angle card ───────────────────────────────────────────────────────────────
 
 class _AngleCard extends StatelessWidget {
   const _AngleCard(this.label, this.value, this.color);
@@ -757,12 +818,13 @@ class _AngleCard extends StatelessWidget {
         children: [
           Text(label,
               style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
+                  color: color, fontSize: 10, fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8)),
+          const SizedBox(height: 6),
           Text('${value.toStringAsFixed(1)}°',
               style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
                   color: AppColors.textDark)),
         ],
       ),
@@ -770,32 +832,182 @@ class _AngleCard extends StatelessWidget {
   }
 }
 
-class _AxisChip extends StatelessWidget {
-  const _AxisChip(this.axis, this.value);
-  final String axis;
-  final double value;
+// ─── Axis row (accel + gyro combined card) ────────────────────────────────────
+
+class _AxisRow extends StatelessWidget {
+  const _AxisRow({
+    required this.label,
+    required this.xVal,
+    required this.yVal,
+    required this.zVal,
+    required this.unit,
+    required this.color,
+    required this.maxAbs,
+  });
+
+  final String label;
+  final double xVal, yVal, zVal;
+  final String unit;
+  final Color color;
+  final double maxAbs;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _AxisBar('X', xVal, unit, color, maxAbs),
+            const SizedBox(width: 10),
+            _AxisBar('Y', yVal, unit, color, maxAbs),
+            const SizedBox(width: 10),
+            _AxisBar('Z', zVal, unit, color, maxAbs),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _AxisBar extends StatelessWidget {
+  const _AxisBar(this.axis, this.value, this.unit, this.color, this.maxAbs);
+  final String axis;
+  final double value;
+  final String unit;
+  final Color color;
+  final double maxAbs;
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = (value.abs() / maxAbs).clamp(0.0, 1.0);
+    final isNeg = value < 0;
     return Expanded(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(axis,
-              style: const TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(value.toStringAsFixed(2),
-              style: const TextStyle(
-                  color: AppColors.textDark,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600)),
+          Row(
+            children: [
+              Text(axis,
+                  style: const TextStyle(
+                      color: AppColors.textLight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+              const Spacer(),
+              Text(
+                '${isNeg ? '' : '+'}${value.toStringAsFixed(2)}',
+                style: TextStyle(
+                    color: isNeg
+                        ? const Color(0xFFFF9500)
+                        : AppColors.textDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 5,
+              backgroundColor: const Color(0x14000000),
+              valueColor: AlwaysStoppedAnimation(
+                  isNeg ? const Color(0xFFFF9500) : color),
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+// ─── Battery card ─────────────────────────────────────────────────────────────
+
+class _BatteryCard extends StatelessWidget {
+  const _BatteryCard({required this.voltage});
+  final double voltage;
+
+  IconData get _icon {
+    if (voltage >= 4.0) return Icons.battery_full_rounded;
+    if (voltage >= 3.6) return Icons.battery_5_bar_rounded;
+    if (voltage >= 3.3) return Icons.battery_2_bar_rounded;
+    return Icons.battery_alert_rounded;
+  }
+
+  Color get _color {
+    if (voltage >= 3.6) return const Color(0xFF34C759);
+    if (voltage >= 3.3) return const Color(0xFFFF9500);
+    return const Color(0xFFFF3B30);
+  }
+
+  String get _label {
+    if (voltage >= 4.0) return 'Full';
+    if (voltage >= 3.6) return 'Good';
+    if (voltage >= 3.3) return 'Low';
+    return 'Critical';
+  }
+
+  double get _fraction {
+    // Li-Po: ~4.2 V full, ~3.3 V empty
+    return ((voltage - 3.3) / (4.2 - 3.3)).clamp(0.0, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderRadius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Icon(_icon, color: _color, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('${voltage.toStringAsFixed(2)} V',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            color: AppColors.textDark)),
+                    const SizedBox(width: 8),
+                    Text(_label,
+                        style: TextStyle(
+                            color: _color,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _fraction,
+                    minHeight: 6,
+                    backgroundColor: const Color(0x18000000),
+                    valueColor: AlwaysStoppedAnimation(_color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);

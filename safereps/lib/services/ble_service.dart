@@ -14,6 +14,9 @@ class ImuData {
   /// Tremor intensity in g — computed on-device at 100 Hz.
   /// ~0 at rest, rises with high-frequency jitter above 5 Hz.
   final double tremor;
+  /// Arm-swing intensity in °/s — band-pass 0.8–3 Hz on pitch gyro.
+  /// ~0 at rest, ~20–60 °/s during normal walking/exercise swing.
+  final double swing;
   final double batt;
 
   const ImuData({
@@ -27,6 +30,7 @@ class ImuData {
     required this.gy,
     required this.gz,
     required this.tremor,
+    required this.swing,
     required this.batt,
   });
 
@@ -41,6 +45,7 @@ class ImuData {
         gy: (j['gy'] as num?)?.toDouble() ?? 0,
         gz: (j['gz'] as num?)?.toDouble() ?? 0,
         tremor: (j['tremor'] as num?)?.toDouble() ?? 0,
+        swing: (j['swing'] as num?)?.toDouble() ?? 0,
         batt: (j['batt'] as num?)?.toDouble() ?? 0,
       );
 }
