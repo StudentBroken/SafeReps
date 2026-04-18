@@ -11,6 +11,9 @@ class ImuData {
   final double yaw, pitch, roll;
   final double ax, ay, az;
   final double gx, gy, gz;
+  /// Tremor intensity in g — computed on-device at 100 Hz.
+  /// ~0 at rest, rises with high-frequency jitter above 5 Hz.
+  final double tremor;
   final double batt;
 
   const ImuData({
@@ -23,6 +26,7 @@ class ImuData {
     required this.gx,
     required this.gy,
     required this.gz,
+    required this.tremor,
     required this.batt,
   });
 
@@ -36,6 +40,7 @@ class ImuData {
         gx: (j['gx'] as num?)?.toDouble() ?? 0,
         gy: (j['gy'] as num?)?.toDouble() ?? 0,
         gz: (j['gz'] as num?)?.toDouble() ?? 0,
+        tremor: (j['tremor'] as num?)?.toDouble() ?? 0,
         batt: (j['batt'] as num?)?.toDouble() ?? 0,
       );
 }

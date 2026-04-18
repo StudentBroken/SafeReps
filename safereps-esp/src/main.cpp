@@ -42,6 +42,16 @@ void IRAM_ATTR dmpDataReady() { mpuInterrupt = true; }
 float alpha       = 0.5f;
 float smoothYaw   = 0, smoothPitch = 0, smoothRoll = 0;
 
+// ─── Tremor detection (100 Hz) ───────────────────────────────────────────────
+// 1st-order high-pass filter: α = RC/(RC+dt), fc=5 Hz, fs=100 Hz
+//   RC = 1/(2π·5) ≈ 0.0318 s,  dt = 0.01 s  →  α ≈ 0.761
+// Passes jitter (>5 Hz) and blocks slow exercise movement + DC gravity.
+static constexpr float kHpAlpha     = 0.761f;
+static constexpr float kTremorAlpha = 0.08f;  // slow EMA, ~125 ms window
+float prevLax = 0, prevLay = 0, prevLaz = 0;
+float hpx = 0, hpy = 0, hpz = 0;
+float tremorScore = 0;
+
 // ─── Zero offsets (runtime, not persisted) ───────────────────────────────────
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
 
@@ -322,6 +332,28 @@ void loop() {
         float finalPitch = smoothPitch - pitchOffset;
         float finalRoll  = smoothRoll  - rollOffset;
 
+        // ── 100 Hz: linear accel + tremor pipeline ───────────────────────────
+        // Read raw sensor registers every DMP packet (time-aligned with gravity).
+        int16_t rax, ray, raz, rgx, rgy, rgz;
+        mpu.getMotion6(&rax, &ray, &raz, &rgx, &rgy, &rgz);
+
+        // Gravity-compensated linear acceleration in g.
+        float lax = rax / 16384.0f - gravity.x;
+        float lay = ray / 16384.0f - gravity.y;
+        float laz = raz / 16384.0f - gravity.z;
+
+        // 1st-order high-pass filter — removes slow movement & DC gravity residual,
+        // leaves only high-frequency jitter above ~5 Hz.
+        hpx = kHpAlpha * (hpx + lax - prevLax);
+        hpy = kHpAlpha * (hpy + lay - prevLay);
+        hpz = kHpAlpha * (hpz + laz - prevLaz);
+        prevLax = lax;  prevLay = lay;  prevLaz = laz;
+
+        // L2 magnitude → slow EMA → tremorScore (g units, ~0 at rest, spikes on jitter)
+        float mag = sqrtf(hpx*hpx + hpy*hpy + hpz*hpz);
+        tremorScore = kTremorAlpha * mag + (1.0f - kTremorAlpha) * tremorScore;
+
+        // ── 10 Hz: BLE send ──────────────────────────────────────────────────
         if (streamData) {
             unsigned long now = millis();
             if (now - lastSendMs >= kSendInterval) {
@@ -332,26 +364,16 @@ void loop() {
                     lastBatteryCheck = now;
                 }
 
-                // Raw accel (±2 g → 16384 LSB/g) and gyro (±250 °/s → 131 LSB/°/s)
-                // from the sensor registers, matched to this DMP sample's gravity vector.
-                int16_t rax, ray, raz, rgx, rgy, rgz;
-                mpu.getMotion6(&rax, &ray, &raz, &rgx, &rgy, &rgz);
-
-                // Subtract gravity in g-units so ax/ay/az is pure linear acceleration.
-                // gravity is a unit vector from the DMP quaternion — no scale mismatch.
-                float ax = rax / 16384.0f - gravity.x;
-                float ay = ray / 16384.0f - gravity.y;
-                float az = raz / 16384.0f - gravity.z;
-
-                char buf[220];
+                char buf[256];
                 snprintf(buf, sizeof(buf),
                     "{\"yaw\":%.2f,\"pitch\":%.2f,\"roll\":%.2f,"
                     "\"ax\":%.3f,\"ay\":%.3f,\"az\":%.3f,"
                     "\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,"
-                    "\"batt\":%.2f}\n",
+                    "\"tremor\":%.3f,\"batt\":%.2f}\n",
                     finalYaw, finalPitch, finalRoll,
-                    ax, ay, az,
+                    lax, lay, laz,
                     rgx / 131.0f, rgy / 131.0f, rgz / 131.0f,
+                    tremorScore,
                     batteryVoltage
                 );
                 bleSend(buf);

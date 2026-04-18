@@ -627,6 +627,10 @@ class _DataPanel extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 12),
+        const _SectionLabel('Tremor Score'),
+        const SizedBox(height: 6),
+        _TremorCard(score: data!.tremor),
+        const SizedBox(height: 12),
         const _SectionLabel('Battery'),
         const SizedBox(height: 6),
         GlassCard(
@@ -674,6 +678,67 @@ class _DataPanel extends StatelessWidget {
     if (v >= 3.6) return 'Good';
     if (v >= 3.3) return 'Low';
     return 'Critical';
+  }
+}
+
+class _TremorCard extends StatelessWidget {
+  const _TremorCard({required this.score});
+  final double score;
+
+  // Clamp to [0, 1] for bar width; score above 1 g is extreme.
+  static const _kMax = 0.3; // 0.3 g = full bar (calibrated for exercise use)
+
+  Color get _color {
+    if (score < 0.02) return const Color(0xFF34C759); // none
+    if (score < 0.06) return const Color(0xFFFF9500); // mild
+    return const Color(0xFFFF3B30);                   // significant
+  }
+
+  String get _label {
+    if (score < 0.02) return 'None';
+    if (score < 0.06) return 'Mild';
+    if (score < 0.12) return 'Moderate';
+    return 'High';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = (score / _kMax).clamp(0.0, 1.0);
+    return GlassCard(
+      borderRadius: 14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.vibration_rounded, color: _color, size: 18),
+              const SizedBox(width: 8),
+              Text(_label,
+                  style: TextStyle(
+                      color: _color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14)),
+              const Spacer(),
+              Text('${score.toStringAsFixed(3)} g',
+                  style: const TextStyle(
+                      color: AppColors.textMid,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 8,
+              backgroundColor: const Color(0x18000000),
+              valueColor: AlwaysStoppedAnimation(_color),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
