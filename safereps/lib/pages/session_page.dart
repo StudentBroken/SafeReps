@@ -124,7 +124,7 @@ class _SessionPageState extends State<SessionPage> with WidgetsBindingObserver {
   late final VoiceCoachService _coach;
   // Cooldown to avoid firing cues on every BLE tick
   DateTime? _lastCueFiredAt;
-  static const _cueCooldown = Duration(seconds: 8);
+  static const _cueCooldown = Duration(milliseconds: 3500);
 
   // Form / notification state
   bool _isPoseValid = true;

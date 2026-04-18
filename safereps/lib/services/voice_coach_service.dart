@@ -425,7 +425,7 @@ class VoiceCoachService extends ChangeNotifier {
     notifyListeners();
 
     await _player.setVolume(_settings.volume);
-    await _player.play(AssetSource(path.replaceFirst('../', '')));
+    await _player.play(AssetSource(path));
 
     // Clear caption after a delay matching typical track length
     Future.delayed(const Duration(seconds: 6), () {
