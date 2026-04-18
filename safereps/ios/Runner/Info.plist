@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SafeReps uses the camera to analyze your body pose and provide form feedback during workouts.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required by the camera plugin even when audio is disabled.</string>
 </dict>
 </plist>
