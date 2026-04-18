@@ -37,7 +37,6 @@ migrate_working_dir/
 # iOS related
 /ios/Pods/
 /ios/.symlinks/
-/ios/Podfile.lock
 /ios/build/
 /ios/Flutter/Generated.xcconfig
 /ios/Flutter/flutter_export_environment.sh
