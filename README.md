@@ -107,6 +107,25 @@ Ensure you have the Flutter SDK installed.
 
 ---
 
+## 🔮 The Future: Beyond the Rep
+
+SafeReps is evolving from a rep counter into a complete movement intelligence platform. Our upcoming roadmap includes:
+
+*   **⌚ Smart Watch Integration**: Porting our sensor fusion algorithms to Apple Watch and Wear OS for a seamless, peripheral-free experience.
+*   **🎮 Gamification & Play**:
+    *   **Movement-Based Games**: Turn your workout into a literal game where your body is the controller.
+    *   **Artistic Expression**: "Drawing" in 3D space using movement trajectories.
+    *   **Gamified Progress**: RPG-style stat progression based on the quality and consistency of your reps.
+*   **🥋 Expanded Disciplines**:
+    *   **Shadow Boxing**: High-speed tracking and strike analysis for combat sports.
+    *   **Rehabilitation**: Dedicated modules for physical therapy and injury recovery with sub-degree ROM tracking.
+    *   **Movement Analysis**: Professional-grade biomechanical breakdowns for peak performance.
+*   **🧭 Cutting-Edge Tracking**:
+    *   **Dead Reckoning**: Advanced IMU-only positioning and spatial tracking for when the camera view is obstructed.
+    *   **Full-Body Fusion**: Support for multi-sensor arrays to track every joint simultaneously.
+
+---
+
 ## 📄 License
 
 This project is proprietary. All rights reserved.
