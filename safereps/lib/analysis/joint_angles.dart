@@ -39,16 +39,17 @@ class JointAngles {
   }
 
   String toClipboardString() {
-    return [
-      if (leftKnee != null) 'Left Knee: ${leftKnee!.toStringAsFixed(1)}°',
-      if (rightKnee != null) 'Right Knee: ${rightKnee!.toStringAsFixed(1)}°',
-      if (leftHip != null) 'Left Hip: ${leftHip!.toStringAsFixed(1)}°',
-      if (rightHip != null) 'Right Hip: ${rightHip!.toStringAsFixed(1)}°',
-      if (leftElbow != null) 'Left Elbow: ${leftElbow!.toStringAsFixed(1)}°',
-      if (rightElbow != null) 'Right Elbow: ${rightElbow!.toStringAsFixed(1)}°',
-      if (leftShoulder != null) 'Left Shoulder: ${leftShoulder!.toStringAsFixed(1)}°',
-      if (rightShoulder != null) 'Right Shoulder: ${rightShoulder!.toStringAsFixed(1)}°',
-    ].join('\n');
+    final parts = [
+      if (leftKnee != null) 'lk:${leftKnee!.toStringAsFixed(0)}',
+      if (rightKnee != null) 'rk:${rightKnee!.toStringAsFixed(0)}',
+      if (leftHip != null) 'lh:${leftHip!.toStringAsFixed(0)}',
+      if (rightHip != null) 'rh:${rightHip!.toStringAsFixed(0)}',
+      if (leftElbow != null) 'le:${leftElbow!.toStringAsFixed(0)}',
+      if (rightElbow != null) 're:${rightElbow!.toStringAsFixed(0)}',
+      if (leftShoulder != null) 'ls:${leftShoulder!.toStringAsFixed(0)}',
+      if (rightShoulder != null) 'rs:${rightShoulder!.toStringAsFixed(0)}',
+    ];
+    return 'pose_angles: ${parts.join(',')} deg';
   }
 }
 
