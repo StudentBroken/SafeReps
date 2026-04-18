@@ -106,7 +106,8 @@ void updateBattery() {
     for (int i = 0; i < 10; i++) raw += analogRead(BATTERY_PIN);
     raw /= 10;
     float pinV    = (raw / 4095.0f) * 3.3f;
-    batteryVoltage = pinV * 2.0f;  // 100k/100k voltage divider
+    // Calibrated: user reported 4.37V when it was actually 3.95V (factor = 0.90389)
+    batteryVoltage = pinV * 2.0f * 0.90389f;
 }
 
 // ─── BLE callbacks ───────────────────────────────────────────────────────────

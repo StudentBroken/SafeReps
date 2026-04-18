@@ -26,6 +26,9 @@ class _BleDebugPageState extends State<BleDebugPage> {
     return AnimatedBuilder(
       animation: _ble,
       builder: (context, _) {
+        final state = _ble.connectionState;
+        final connected = state == BleConnectionState.connected;
+
         return Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(
@@ -36,7 +39,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
                     color: AppColors.textDark, fontWeight: FontWeight.w700)),
             iconTheme: const IconThemeData(color: AppColors.textDark),
             actions: [
-              if (_ble.isConnected)
+              if (connected)
                 TextButton(
                   onPressed: _ble.disconnect,
                   child: const Text('Disconnect',
@@ -48,13 +51,22 @@ class _BleDebugPageState extends State<BleDebugPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                if (_ble.statusMessage != null) _StatusBanner(_ble.statusMessage!),
-                if (!_ble.isConnected) ...[
-                  _ScanPanel(ble: _ble),
-                ] else ...[
+                // Status banner always shown when there's a message
+                if (_ble.statusMessage != null)
+                  _StatusBanner(_ble.statusMessage!),
+
+                if (state == BleConnectionState.reconnecting) ...[
+                  _ReconnectPanel(ble: _ble),
+                ] else if (connected) ...[
                   _ControlPanel(ble: _ble),
+                  if (_ble.isCalibrating) ...[
+                    const SizedBox(height: 12),
+                    const _CalibrationBanner(),
+                  ],
                   const SizedBox(height: 12),
                   _DataPanel(data: _ble.latestData),
+                ] else ...[
+                  _ScanPanel(ble: _ble),
                 ],
               ],
             ),
@@ -77,10 +89,79 @@ class _StatusBanner extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
         borderRadius: 10,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(message,
-            style: const TextStyle(
-                color: AppColors.textMid, fontSize: 12),
+            style: const TextStyle(color: AppColors.textMid, fontSize: 12),
             textAlign: TextAlign.center),
+      ),
+    );
+  }
+}
+
+// ─── Reconnect panel ──────────────────────────────────────────────────────────
+
+class _ReconnectPanel extends StatelessWidget {
+  const _ReconnectPanel({required this.ble});
+  final BleService ble;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderRadius: 16,
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              color: AppColors.pinkBright,
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            ble.savedDeviceName ?? 'Saved device',
+            style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDark,
+                fontSize: 16),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Attempt ${ble.reconnectAttempt}',
+            style: const TextStyle(color: AppColors.textMid, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textMid,
+                    side: const BorderSide(color: AppColors.beige),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: ble.disconnect,
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF3B30),
+                    side: const BorderSide(color: Color(0x44FF3B30)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: ble.forgetDevice,
+                  child: const Text('Forget Device'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -94,9 +175,17 @@ class _ScanPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isScanning = ble.connectionState == BleConnectionState.scanning;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Saved device quick-connect card
+        if (ble.savedDeviceId != null) ...[
+          _SavedDeviceCard(ble: ble),
+          const SizedBox(height: 12),
+        ],
+
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.pinkBright,
@@ -104,8 +193,8 @@ class _ScanPanel extends StatelessWidget {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
           ),
-          onPressed: ble.isScanning ? ble.stopScan : ble.startScan,
-          icon: ble.isScanning
+          onPressed: isScanning ? ble.stopScan : ble.startScan,
+          icon: isScanning
               ? const SizedBox(
                   width: 16,
                   height: 16,
@@ -113,12 +202,13 @@ class _ScanPanel extends StatelessWidget {
                       color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.bluetooth_searching_rounded,
                   color: Colors.white),
-          label: Text(ble.isScanning ? 'Scanning…' : 'Scan for Devices',
+          label: Text(isScanning ? 'Scanning…' : 'Scan for Devices',
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(height: 12),
+
         if (ble.scanResults.isNotEmpty) ...[
+          const SizedBox(height: 12),
           const _SectionLabel('Discovered Devices'),
           const SizedBox(height: 6),
           GlassCard(
@@ -129,8 +219,15 @@ class _ScanPanel extends StatelessWidget {
                 for (int i = 0; i < ble.scanResults.length; i++) ...[
                   if (i > 0)
                     const Divider(
-                        height: 1, indent: 56, color: Color(0x18000000)),
-                  _DeviceTile(result: ble.scanResults[i], ble: ble),
+                        height: 1,
+                        indent: 56,
+                        color: Color(0x18000000)),
+                  _DeviceTile(
+                    result: ble.scanResults[i],
+                    isSaved: ble.scanResults[i].device.remoteId.str ==
+                        ble.savedDeviceId,
+                    onTap: () => ble.connect(ble.scanResults[i].device),
+                  ),
                 ],
               ],
             ),
@@ -141,41 +238,145 @@ class _ScanPanel extends StatelessWidget {
   }
 }
 
-class _DeviceTile extends StatelessWidget {
-  const _DeviceTile({required this.result, required this.ble});
-  final ScanResult result;
+class _SavedDeviceCard extends StatelessWidget {
+  const _SavedDeviceCard({required this.ble});
   final BleService ble;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderRadius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.pinkBright.withAlpha(30),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.bluetooth_connected_rounded,
+                color: AppColors.pinkBright, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Saved Device',
+                    style: TextStyle(
+                        color: AppColors.textLight,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5)),
+                const SizedBox(height: 2),
+                Text(
+                  ble.savedDeviceName ?? ble.savedDeviceId ?? '',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                      fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: ble.forgetDevice,
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFF3B30),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6)),
+            child: const Text('Forget',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+          FilledButton(
+            onPressed: () => ble.connect(
+                BluetoothDevice(remoteId: DeviceIdentifier(ble.savedDeviceId!))),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.pinkBright,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Connect',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceTile extends StatelessWidget {
+  const _DeviceTile({
+    required this.result,
+    required this.isSaved,
+    required this.onTap,
+  });
+  final ScanResult result;
+  final bool isSaved;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final name = result.device.platformName.isNotEmpty
         ? result.device.platformName
         : 'Unknown (${result.device.remoteId})';
-    final rssi = result.rssi;
 
     return ListTile(
       leading: Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: isSaved ? AppColors.pinkBright.withAlpha(30) : AppColors.pink,
           borderRadius: BorderRadius.circular(8),
         ),
-        child:
-            const Icon(Icons.bluetooth_rounded, color: AppColors.textDark, size: 18),
+        child: Icon(
+          isSaved
+              ? Icons.bluetooth_connected_rounded
+              : Icons.bluetooth_rounded,
+          color: isSaved ? AppColors.pinkBright : AppColors.textDark,
+          size: 18,
+        ),
       ),
-      title: Text(name,
-          style: const TextStyle(
-              fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 14)),
-      subtitle: Text('RSSI: $rssi dBm',
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                    fontSize: 14)),
+          ),
+          if (isSaved)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.pinkBright.withAlpha(25),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('Saved',
+                  style: TextStyle(
+                      color: AppColors.pinkBright,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+            ),
+        ],
+      ),
+      subtitle: Text('RSSI: ${result.rssi} dBm',
           style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
       trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.beige),
-      onTap: () => ble.connect(result.device),
+      onTap: onTap,
     );
   }
 }
 
-// ─── Control panel (when connected) ──────────────────────────────────────────
+// ─── Control panel (connected) ────────────────────────────────────────────────
 
 class _ControlPanel extends StatelessWidget {
   const _ControlPanel({required this.ble});
@@ -183,6 +384,10 @@ class _ControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = ble.connectedDevice?.platformName.isNotEmpty == true
+        ? ble.connectedDevice!.platformName
+        : ble.savedDeviceName ?? 'Connected';
+
     return GlassCard(
       borderRadius: 14,
       child: Column(
@@ -194,21 +399,25 @@ class _ControlPanel extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF34C759),
-                  shape: BoxShape.circle,
-                ),
+                    color: Color(0xFF34C759), shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  ble.connectedDevice?.platformName.isNotEmpty == true
-                      ? ble.connectedDevice!.platformName
-                      : 'Connected',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark,
-                      fontSize: 15),
-                ),
+                child: Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                        fontSize: 15)),
+              ),
+              TextButton(
+                onPressed: ble.forgetDevice,
+                style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF3B30),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                child: const Text('Forget',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -242,7 +451,8 @@ class _ControlPanel extends StatelessWidget {
                   label: 'CALIBRATE',
                   icon: Icons.tune_rounded,
                   color: AppColors.textMid,
-                  onTap: ble.calibrate,
+                  onTap: ble.isCalibrating ? null : ble.calibrate,
+                  loading: ble.isCalibrating,
                 ),
               ),
             ],
@@ -259,35 +469,85 @@ class _CtrlButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.loading = false,
   });
   final String label;
   final IconData icon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = onTap == null ? color.withAlpha(90) : color;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: color.withAlpha(22),
+          color: effectiveColor.withAlpha(22),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withAlpha(60)),
+          border: Border.all(color: effectiveColor.withAlpha(60)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
+            loading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: effectiveColor, strokeWidth: 2))
+                : Icon(icon, color: effectiveColor, size: 20),
             const SizedBox(height: 4),
             Text(label,
                 style: TextStyle(
-                    color: color,
+                    color: effectiveColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Calibration banner ───────────────────────────────────────────────────────
+
+class _CalibrationBanner extends StatelessWidget {
+  const _CalibrationBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderRadius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+                color: AppColors.pinkBright, strokeWidth: 2.5),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Calibrating…',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                        fontSize: 14)),
+                SizedBox(height: 2),
+                Text('Keep the device completely still',
+                    style:
+                        TextStyle(color: AppColors.textMid, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -305,7 +565,7 @@ class _DataPanel extends StatelessWidget {
       return GlassCard(
         borderRadius: 14,
         child: const Center(
-          child: Text('No data — tap DATA ON',
+          child: Text('No data yet — tap DATA ON',
               style: TextStyle(color: AppColors.textLight)),
         ),
       );
@@ -313,15 +573,20 @@ class _DataPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionLabel('Orientation'),
+        const _SectionLabel('Orientation (°)'),
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _AngleCard('Yaw', data!.yaw, AppColors.pinkBright)),
+            Expanded(
+                child: _AngleCard('Yaw', data!.yaw, AppColors.pinkBright)),
             const SizedBox(width: 8),
-            Expanded(child: _AngleCard('Pitch', data!.pitch, const Color(0xFF5AC8FA))),
+            Expanded(
+                child: _AngleCard(
+                    'Pitch', data!.pitch, const Color(0xFF5AC8FA))),
             const SizedBox(width: 8),
-            Expanded(child: _AngleCard('Roll', data!.roll, const Color(0xFF34C759))),
+            Expanded(
+                child: _AngleCard(
+                    'Roll', data!.roll, const Color(0xFF34C759))),
           ],
         ),
         const SizedBox(height: 12),
@@ -329,32 +594,30 @@ class _DataPanel extends StatelessWidget {
         const SizedBox(height: 6),
         GlassCard(
           borderRadius: 14,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              _AxisChip('X', data!.ax),
-              const SizedBox(width: 8),
-              _AxisChip('Y', data!.ay),
-              const SizedBox(width: 8),
-              _AxisChip('Z', data!.az),
-            ],
-          ),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(children: [
+            _AxisChip('X', data!.ax),
+            const SizedBox(width: 8),
+            _AxisChip('Y', data!.ay),
+            const SizedBox(width: 8),
+            _AxisChip('Z', data!.az),
+          ]),
         ),
         const SizedBox(height: 12),
         const _SectionLabel('Gyroscope (°/s)'),
         const SizedBox(height: 6),
         GlassCard(
           borderRadius: 14,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              _AxisChip('X', data!.gx),
-              const SizedBox(width: 8),
-              _AxisChip('Y', data!.gy),
-              const SizedBox(width: 8),
-              _AxisChip('Z', data!.gz),
-            ],
-          ),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(children: [
+            _AxisChip('X', data!.gx),
+            const SizedBox(width: 8),
+            _AxisChip('Y', data!.gy),
+            const SizedBox(width: 8),
+            _AxisChip('Z', data!.gz),
+          ]),
         ),
         const SizedBox(height: 12),
         const _SectionLabel('Battery'),
@@ -363,8 +626,11 @@ class _DataPanel extends StatelessWidget {
           borderRadius: 14,
           child: Row(
             children: [
-              const Icon(Icons.battery_charging_full_rounded,
-                  color: AppColors.pinkBright, size: 22),
+              Icon(
+                _battIcon(data!.batt),
+                color: _battColor(data!.batt),
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Text('${data!.batt.toStringAsFixed(2)} V',
                   style: const TextStyle(
@@ -373,13 +639,27 @@ class _DataPanel extends StatelessWidget {
                       color: AppColors.textDark)),
               const SizedBox(width: 8),
               Text(_battLabel(data!.batt),
-                  style: const TextStyle(
-                      color: AppColors.textMid, fontSize: 12)),
+                  style: TextStyle(
+                      color: _battColor(data!.batt), fontSize: 12,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),
       ],
     );
+  }
+
+  IconData _battIcon(double v) {
+    if (v >= 4.0) return Icons.battery_full_rounded;
+    if (v >= 3.6) return Icons.battery_5_bar_rounded;
+    if (v >= 3.3) return Icons.battery_2_bar_rounded;
+    return Icons.battery_alert_rounded;
+  }
+
+  Color _battColor(double v) {
+    if (v >= 3.6) return const Color(0xFF34C759);
+    if (v >= 3.3) return const Color(0xFFFF9500);
+    return const Color(0xFFFF3B30);
   }
 
   String _battLabel(double v) {
@@ -451,14 +731,11 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: const TextStyle(
-        color: AppColors.textLight,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.2,
-      ),
-    );
+    return Text(text.toUpperCase(),
+        style: const TextStyle(
+            color: AppColors.textLight,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2));
   }
 }
