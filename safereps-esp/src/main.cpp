@@ -62,9 +62,20 @@ float swingScore = 0;           // EMA of cheat ratio (°/s per g)
 
 // ─── Mount angle — rotates the horizontal gravity plane to align chip axes ────
 // Compensates for the chip being physically rotated around the vertical axis on
-// the wrist.  Tune via MOUNT_ANGLE <deg> until pitch reads correctly.
-// At 0° the DMP's gravity.x axis is "pitch"; positive rotates towards gravity.y.
+// the wrist.  Tune via MOUNT_ANGLE <deg> or run MOUNT_CAL <secs> for auto-detect.
+// After rotation, gry is used as the pitch axis (arm raise/lower).
 float mountAngle = 0.0f;
+
+// ─── Mount calibration — PCA over gravity samples ────────────────────────────
+// The user swings their arm through the pitch range for N seconds.  The axis of
+// maximum variance in the (gx, gy) plane is the pitch axis.  PCA finds that
+// angle and sets mountAngle so it maps to gry (our pitch axis after rotation).
+bool          mountCalActive = false;
+unsigned long mountCalStart  = 0;
+unsigned long mountCalMs     = 0;
+float mcSumGx = 0, mcSumGy = 0;
+float mcSumGxx = 0, mcSumGxy = 0, mcSumGyy = 0;
+int   mcN = 0;
 
 // ─── Zero offsets (runtime, not persisted) ───────────────────────────────────
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
@@ -226,12 +237,25 @@ void parseCommand(String command) {
         float v = command.substring(12).toFloat();
         if (v >= -180.0f && v <= 180.0f) {
             mountAngle = v;
+            hpx = hpy = hpz = 0;
             char buf[64];
             snprintf(buf, sizeof(buf), "{\"status\":\"Mount angle=%.1f deg\"}", mountAngle);
             bleSend(buf);
         } else {
             bleSend("{\"status\":\"Invalid MOUNT_ANGLE (-180 to 180)\"}");
         }
+    } else if (command.startsWith("MOUNT_CAL ")) {
+        int secs = command.substring(10).toInt();
+        secs = max(2, min(secs, 30));
+        mountCalActive = true;
+        mountCalStart  = millis();
+        mountCalMs     = (unsigned long)secs * 1000UL;
+        mcSumGx = mcSumGy = mcSumGxx = mcSumGxy = mcSumGyy = 0;
+        mcN = 0;
+        char buf[80];
+        snprintf(buf, sizeof(buf),
+            "{\"status\":\"Mount cal: swing arm up/down for %d s…\"}", secs);
+        bleSend(buf);
     }
 }
 
@@ -417,8 +441,42 @@ void loop() {
         float grx = gravity.x * ca - gravity.y * sa;
         float gry = gravity.x * sa + gravity.y * ca;
         // gz unchanged — it's the vertical component.
-        float rawPitch = atan2f(grx, gravity.z) * 180.0f / (float)M_PI;
-        float rawRoll  = atan2f(gry, gravity.z) * 180.0f / (float)M_PI;
+        // gry drives pitch (arm raise/lower); grx drives roll (side tilt).
+        float rawPitch = atan2f(gry, gravity.z) * 180.0f / (float)M_PI;
+        float rawRoll  = atan2f(grx, gravity.z) * 180.0f / (float)M_PI;
+
+        // ── Mount calibration: accumulate gravity samples ────────────────────
+        if (mountCalActive) {
+            mcSumGx  += gravity.x;
+            mcSumGy  += gravity.y;
+            mcSumGxx += gravity.x * gravity.x;
+            mcSumGxy += gravity.x * gravity.y;
+            mcSumGyy += gravity.y * gravity.y;
+            mcN++;
+            if (millis() - mountCalStart >= mountCalMs && mcN > 20) {
+                mountCalActive = false;
+                float n   = (float)mcN;
+                float mx  = mcSumGx / n;
+                float my  = mcSumGy / n;
+                float Cxx = mcSumGxx / n - mx * mx;
+                float Cxy = mcSumGxy / n - mx * my;
+                float Cyy = mcSumGyy / n - my * my;
+                // PCA: angle of first principal component (max-variance direction).
+                // That direction should become our pitch (gry) axis.
+                // pitch = atan2(gry, gz) with gry = gx*sin(θ)+gy*cos(θ).
+                // We want the principal axis [cos(φ), sin(φ)] to map to the gry
+                // direction, so rotate φ → 90° (gry axis): mountAngle = 90° - φ.
+                float phi = 0.5f * atan2f(2.0f * Cxy, Cxx - Cyy);
+                mountAngle = 90.0f - phi * 180.0f / (float)M_PI;
+                // Normalise to (-180, 180]
+                while (mountAngle >  180.0f) mountAngle -= 360.0f;
+                while (mountAngle <= -180.0f) mountAngle += 360.0f;
+                hpx = hpy = hpz = 0; // reset tremor HP after axis change
+                char buf[64];
+                snprintf(buf, sizeof(buf), "{\"mount_cal\":%.1f}", mountAngle);
+                bleSend(buf);
+            }
+        }
 
         // Wraparound-safe EMA (takes shortest arc through ±180° boundary)
         smoothYaw   = emaAngle(smoothYaw,   rawYaw,   alpha);

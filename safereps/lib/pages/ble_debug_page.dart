@@ -29,9 +29,37 @@ class _BleDebugPageState extends State<BleDebugPage> {
 
   bool _tuningOpen = false;
 
+  // Mount calibration countdown
+  bool _mountCalRunning = false;
+  int  _mountCalSecsLeft = 0;
+
+  void _startMountCal(BleService ble) {
+    const kSecs = 5;
+    setState(() { _mountCalRunning = true; _mountCalSecsLeft = kSecs; });
+    ble.startMountCal(kSecs);
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return false;
+      setState(() => _mountCalSecsLeft--);
+      return _mountCalSecsLeft > 0;
+    }).then((_) {
+      if (mounted) setState(() => _mountCalRunning = false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final ble = BleScope.of(context);
+
+    // Consume calibrated mount angle sent by firmware
+    if (ble.calibratedMountAngle != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ble.calibratedMountAngle != null) {
+          setState(() => _mountAngle = ble.calibratedMountAngle!);
+          ble.consumeMountCal();
+        }
+      });
+    }
     final themeColors = AppTheme.colors(context);
     final primary = Theme.of(context).colorScheme.primary;
     final state = ble.connectionState;
@@ -77,6 +105,9 @@ class _BleDebugPageState extends State<BleDebugPage> {
                 const SizedBox(height: 12),
                 _TuningPanel(
                   mountAngle:       _mountAngle,
+                  mountCalRunning:  _mountCalRunning,
+                  mountCalSecsLeft: _mountCalSecsLeft,
+                  onMountCal:       () => _startMountCal(ble),
                   tremorHpAlpha:    _tremorHpAlpha,
                   tremorEmaAlpha:   _tremorEmaAlpha,
                   cheatEps:         _cheatEps,
@@ -568,6 +599,9 @@ class _CalibrationBanner extends StatelessWidget {
 class _TuningPanel extends StatelessWidget {
   const _TuningPanel({
     required this.mountAngle,
+    required this.mountCalRunning,
+    required this.mountCalSecsLeft,
+    required this.onMountCal,
     required this.tremorHpAlpha,
     required this.tremorEmaAlpha,
     required this.cheatEps,
@@ -590,6 +624,9 @@ class _TuningPanel extends StatelessWidget {
   });
 
   final double mountAngle;
+  final bool   mountCalRunning;
+  final int    mountCalSecsLeft;
+  final VoidCallback onMountCal;
   final double tremorHpAlpha, tremorEmaAlpha;
   final double cheatEps, cheatEmaAlpha;
   final double tremorNone, tremorMild, tremorMod;
@@ -613,12 +650,19 @@ class _TuningPanel extends StatelessWidget {
           const SizedBox(height: 10),
           _ParamSlider(
             label: 'Mount angle (°)',
-            hint: 'Rotate pitch/roll axes — adjust until pitch reads correctly',
+            hint: 'Fine-tune or use Auto-calibrate below',
             value: mountAngle,
             min: -180, max: 180, divisions: 360,
             format: (v) => '${v.toStringAsFixed(0)}°',
             onChanged: onMountAngle,
           ),
+          const SizedBox(height: 4),
+          _MountCalButton(
+            running:   mountCalRunning,
+            secsLeft:  mountCalSecsLeft,
+            onPressed: mountCalRunning ? null : onMountCal,
+          ),
+          const SizedBox(height: 8),
           _ParamSlider(
             label: 'Tremor HP α',
             hint: 'Higher = only faster jitter counted',
@@ -715,6 +759,49 @@ class _TuneSection extends StatelessWidget {
         style: TextStyle(
             color: colors.textLight, fontSize: 9,
             fontWeight: FontWeight.w700, letterSpacing: 1.1));
+  }
+}
+
+class _MountCalButton extends StatelessWidget {
+  const _MountCalButton({
+    required this.running,
+    required this.secsLeft,
+    required this.onPressed,
+  });
+  final bool running;
+  final int  secsLeft;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: running ? AppColors.textMid : AppColors.pinkBright,
+          side: BorderSide(
+              color: running
+                  ? AppColors.beige
+                  : AppColors.pinkBright.withAlpha(120)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        onPressed: onPressed,
+        icon: running
+            ? const SizedBox(
+                width: 14, height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.textMid))
+            : const Icon(Icons.rotate_90_degrees_ccw_rounded, size: 16),
+        label: Text(
+          running
+              ? 'Swing arm up/down… ${secsLeft}s'
+              : 'Auto-calibrate mount (5 s)',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
   }
 }
 

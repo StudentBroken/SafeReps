@@ -6,11 +6,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
-import 'models/goals_model.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/goals_page.dart';
 import 'pages/settings_page.dart';
-import 'services/ble_service.dart';
 import 'theme.dart';
 
 // Floating pill height (content only, safe-area bottom added separately).

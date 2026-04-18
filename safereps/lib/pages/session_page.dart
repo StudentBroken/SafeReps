@@ -9,8 +9,10 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart'
     show InputImageRotation, InputImageRotationValue;
 
 import '../analysis/exercise.dart';
+import '../analysis/exercise_imu_profile.dart';
 import '../analysis/joint_angles.dart';
 import '../analysis/rep_counter.dart';
+import '../analysis/rep_form_tracker.dart';
 import '../main.dart' show cameras;
 import '../models/goals_model.dart';
 import '../pose/mlkit_pose_estimator.dart';
@@ -25,7 +27,7 @@ import '../widgets/glass_card.dart';
 // Session phase state machine
 // ---------------------------------------------------------------------------
 
-enum _Phase { preview, getReady, active, rest, done }
+enum _Phase { preview, imuCalibration, getReady, active, rest, done }
 
 // ---------------------------------------------------------------------------
 
@@ -79,6 +81,18 @@ class _SessionPageState extends State<SessionPage>
   String? _notification;
   Timer? _notificationTimer;
 
+  // ── IMU calibration ───────────────────────────────────────────────────────
+  bool _isTposeDetected = false;
+  DateTime? _tPoseStableAt;
+  bool _tPoseCalibrating = false; // zero sent, waiting 2 s before advancing
+
+  // ── Form tracking (IMU) ───────────────────────────────────────────────────
+  final _formTracker = RepFormTracker();
+  DateTime? _lastBleTime;
+  double _currentRepQuality = 100.0; // quality of last completed rep
+
+  // ── Derived getters ───────────────────────────────────────────────────────
+
   ExerciseGoal get _currentGoal =>
       widget.goals.exercises[_exerciseIndex];
 
@@ -94,12 +108,80 @@ class _SessionPageState extends State<SessionPage>
         orElse: () => builtInExercises.first,
       );
 
+  bool get _bleConnected =>
+      widget.ble != null &&
+      widget.ble!.connectionState == BleConnectionState.connected;
+
+  /// Ring value: form quality when BLE connected, set-progress otherwise.
+  double get _ringProgress {
+    if (!_bleConnected) return _repProgress;
+    final phase = _repResult?.phase;
+    if (phase == RepPhase.descending ||
+        phase == RepPhase.bottom ||
+        phase == RepPhase.ascending) {
+      return _formTracker.currentQuality / 100.0;
+    }
+    return _currentRepQuality / 100.0;
+  }
+
+  /// Rep completion bar (0–1): ML-Kit angle-based + optional IMU pitch.
+  double get _repCompletionProgress {
+    final result = _repResult;
+    if (result == null) return 0.0;
+    final phase = result.phase;
+    final angle = result.primaryAngle;
+    final exercise = _currentExercise;
+    final inverted = exercise.topThreshold < exercise.bottomThreshold;
+
+    double mlProgress;
+    if (angle == null) {
+      mlProgress = switch (phase) {
+        RepPhase.idle || RepPhase.top => 0.0,
+        RepPhase.descending => 0.25,
+        RepPhase.bottom => 0.5,
+        RepPhase.ascending => 0.75,
+      };
+    } else if (inverted) {
+      final range = exercise.bottomThreshold - exercise.topThreshold;
+      mlProgress = switch (phase) {
+        RepPhase.idle || RepPhase.top => 0.0,
+        RepPhase.descending =>
+          ((angle - exercise.topThreshold) / range * 0.5).clamp(0.0, 0.5),
+        RepPhase.bottom => 0.5,
+        RepPhase.ascending =>
+          (0.5 + (1.0 - (angle - exercise.topThreshold) / range) * 0.5)
+              .clamp(0.5, 1.0),
+      };
+    } else {
+      final range = exercise.topThreshold - exercise.bottomThreshold;
+      mlProgress = switch (phase) {
+        RepPhase.idle || RepPhase.top => 0.0,
+        RepPhase.descending =>
+          ((exercise.topThreshold - angle) / range * 0.5).clamp(0.0, 0.5),
+        RepPhase.bottom => 0.5,
+        RepPhase.ascending =>
+          (0.5 + (angle - exercise.bottomThreshold) / range * 0.5)
+              .clamp(0.5, 1.0),
+      };
+    }
+
+    // Lateral raise: blend 70% ML Kit + 30% IMU pitch.
+    final bleData = widget.ble?.latestData;
+    if (bleData != null && _currentGoal.name == 'Lateral Raise') {
+      // After ZERO at T-pose: rest≈-90°, T-pose≈0°.
+      final pitchProgress = ((bleData.pitch + 90) / 90).clamp(0.0, 1.0);
+      return (mlProgress * 0.7 + pitchProgress * 0.3).clamp(0.0, 1.0);
+    }
+    return mlProgress;
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.ble?.addListener(_onBleData);
     _initCamera();
     _startPreviewCountdown();
   }
@@ -111,6 +193,7 @@ class _SessionPageState extends State<SessionPage>
     _notificationTimer?.cancel();
     _controller?.dispose();
     _estimator?.close();
+    widget.ble?.removeListener(_onBleData);
     widget.ble?.stopImuStream();
     super.dispose();
   }
@@ -193,7 +276,7 @@ class _SessionPageState extends State<SessionPage>
     final controller = _controller;
     final estimator = _estimator;
     if (_busy || estimator == null || controller == null) return;
-    if (_phase != _Phase.active) return;
+    if (_phase != _Phase.active && _phase != _Phase.imuCalibration) return;
 
     final meta = _buildFrameMeta(image, controller);
     if (meta == null) return;
@@ -201,6 +284,8 @@ class _SessionPageState extends State<SessionPage>
     _busy = true;
     final prevIsPoseValid = _isPoseValid;
     final prevRepCount = _lastKnownReps;
+    // Capture before setState so post-setState check uses the start-of-frame value.
+    final prevTposeStableAt = _tPoseStableAt;
     try {
       final skeletons =
           await estimator.processFrame(image, controller.description, meta);
@@ -216,35 +301,67 @@ class _SessionPageState extends State<SessionPage>
           newIsPoseValid = true;
         } else {
           final last = _lastFullyInFrameTime;
-          if (last != null && now.difference(last) > const Duration(seconds: 1)) {
+          if (last != null &&
+              now.difference(last) > const Duration(seconds: 1)) {
             newIsPoseValid = false;
           }
         }
       }
 
+      final smoothed = _smoother.smooth(skeletons);
+      final angles =
+          smoothed.isNotEmpty ? computeJointAngles(smoothed.first) : null;
+
       setState(() {
-        _skeletons = _smoother.smooth(skeletons);
-        _angles = _skeletons.isNotEmpty
-            ? computeJointAngles(_skeletons.first)
-            : null;
+        _skeletons = smoothed;
+        _angles = angles;
         _frameMeta = FrameMeta(
           imageSize: meta.imageSize,
           rotation: meta.rotation,
           lensDirection: meta.lensDirection,
         );
         _isPoseValid = newIsPoseValid;
-        if (_phase == _Phase.active) {
+
+        if (_phase == _Phase.imuCalibration && !_tPoseCalibrating) {
+          final ls = angles?.leftShoulder;
+          final rs = angles?.rightShoulder;
+          final isTpose =
+              ls != null && rs != null && ls > 75 && rs > 75;
+          _isTposeDetected = isTpose;
+          if (isTpose) {
+            _tPoseStableAt ??= now;
+          } else {
+            _tPoseStableAt = null;
+          }
+        } else if (_phase == _Phase.active) {
           final counter = _repCounter;
-          final angles = _angles;
           if (counter != null && angles != null) {
             _repResult = counter.update(angles);
-            _lastKnownReps = _repResult?.totalReps ?? 0;
+            final newReps = _repResult?.totalReps ?? 0;
+            if (newReps > _lastKnownReps) {
+              // Rep just completed — save quality, reset tracker.
+              _currentRepQuality = _formTracker.currentQuality;
+              _formTracker.reset();
+            }
+            _lastKnownReps = newReps;
             _checkSetComplete();
           }
         }
       });
 
-      // Notifications (called after setState)
+      // Trigger calibration completion outside setState (side-effects).
+      if (_phase == _Phase.imuCalibration &&
+          !_tPoseCalibrating &&
+          prevTposeStableAt != null &&
+          now.difference(prevTposeStableAt) >= const Duration(seconds: 1)) {
+        setState(() => _tPoseCalibrating = true);
+        widget.ble?.zero();
+        Timer(const Duration(seconds: 2), () {
+          if (mounted) _startGetReady();
+        });
+      }
+
+      // Notifications
       if (_phase == _Phase.active) {
         if (!newIsPoseValid && prevIsPoseValid) {
           _showNotification('Keep all limbs in frame!');
@@ -265,6 +382,28 @@ class _SessionPageState extends State<SessionPage>
       _busy = false;
     }
   }
+
+  // ── BLE form tracking ─────────────────────────────────────────────────────
+
+  void _onBleData() {
+    if (_phase != _Phase.active) return;
+    final data = widget.ble?.latestData;
+    if (data == null) return;
+
+    final now = DateTime.now();
+    final dt = _lastBleTime != null
+        ? now.difference(_lastBleTime!).inMilliseconds / 1000.0
+        : 0.0;
+    _lastBleTime = now;
+
+    if (dt > 0 && dt < 1.0) {
+      final profile = imuProfileForExercise(_currentGoal.name);
+      _formTracker.update(data, dt, profile);
+      if (mounted) setState(() {});
+    }
+  }
+
+  // ── Frame meta helpers ────────────────────────────────────────────────────
 
   FrameMetadata? _buildFrameMeta(CameraImage image, CameraController ctl) {
     final camera = ctl.description;
@@ -307,9 +446,20 @@ class _SessionPageState extends State<SessionPage>
       setState(() => _previewCountdown--);
       if (_previewCountdown <= 0) {
         t.cancel();
-        _startGetReady();
+        if (widget.ble != null) {
+          _startImuCalibration();
+        } else {
+          _startGetReady();
+        }
       }
     });
+  }
+
+  void _startImuCalibration() {
+    _isTposeDetected = false;
+    _tPoseStableAt = null;
+    _tPoseCalibrating = false;
+    setState(() => _phase = _Phase.imuCalibration);
   }
 
   void _startGetReady() {
@@ -332,6 +482,10 @@ class _SessionPageState extends State<SessionPage>
   void _startActive() {
     _repResult = null;
     _repCounter = RepCounter(_currentExercise);
+    _formTracker.reset();
+    _currentRepQuality = 100.0;
+    _lastKnownReps = 0;
+    _lastBleTime = null;
     setState(() => _phase = _Phase.active);
     widget.ble?.startImuStream();
   }
@@ -399,6 +553,15 @@ class _SessionPageState extends State<SessionPage>
     final isActive = _phase == _Phase.active;
     final hasExercise = _exerciseIndex < widget.goals.exercises.length;
 
+    // Hold progress for T-pose calibration ring (0–1 over 1 second).
+    final tposeHold = (_tPoseStableAt != null && !_tPoseCalibrating)
+        ? (DateTime.now()
+                .difference(_tPoseStableAt!)
+                .inMilliseconds /
+            1000.0)
+            .clamp(0.0, 1.0)
+        : (_tPoseCalibrating ? 1.0 : 0.0);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -438,6 +601,14 @@ class _SessionPageState extends State<SessionPage>
               child: CircularProgressIndicator(color: Colors.white54),
             ),
 
+          // ── IMU calibration overlay ────────────────────────────────────
+          if (_phase == _Phase.imuCalibration)
+            _TposeCalibrationOverlay(
+              isTposeDetected: _isTposeDetected,
+              holdProgress: tposeHold,
+              calibrated: _tPoseCalibrating,
+            ),
+
           // ── Close (X) button ───────────────────────────────
           Positioned(
             top: 0,
@@ -470,13 +641,14 @@ class _SessionPageState extends State<SessionPage>
                     exerciseName: _currentGoal.name,
                     setIndex: _setIndex,
                     totalSets: widget.goals.sessionSets,
-                    progress: _repProgress,
+                    progress: _ringProgress,
+                    isFormMode: _bleConnected,
                   ),
                 ),
               ),
             ),
 
-          // ── Active: rep count pill ────────────────────
+          // ── Active: rep count pill + completion bar ────────────
           if (isActive && hasExercise)
             Positioned(
               bottom: 0,
@@ -485,10 +657,17 @@ class _SessionPageState extends State<SessionPage>
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 20),
-                  child: _RepCountPill(
-                    reps: _repResult?.totalReps ?? 0,
-                    goal: _currentGoal.repsPerSet,
-                    exerciseName: _currentGoal.name,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _RepCompletionBar(progress: _repCompletionProgress),
+                      const SizedBox(height: 8),
+                      _RepCountPill(
+                        reps: _repResult?.totalReps ?? 0,
+                        goal: _currentGoal.repsPerSet,
+                        exerciseName: _currentGoal.name,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -604,6 +783,122 @@ String _fmtSecs(int secs) {
   final m = secs ~/ 60;
   final s = secs % 60;
   return s == 0 ? '${m}m' : '${m}m ${s}s';
+}
+
+// ---------------------------------------------------------------------------
+// T-pose calibration overlay
+// ---------------------------------------------------------------------------
+
+class _TposeCalibrationOverlay extends StatelessWidget {
+  const _TposeCalibrationOverlay({
+    required this.isTposeDetected,
+    required this.holdProgress,
+    required this.calibrated,
+  });
+
+  final bool isTposeDetected;
+  final double holdProgress;
+  final bool calibrated;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color silhouetteColor = calibrated
+        ? const Color(0xFF4CAF50)
+        : isTposeDetected
+            ? const Color(0xFF4CAF50)
+            : Colors.white54;
+
+    return Container(
+      color: Colors.black54,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: CustomPaint(
+                painter: _TposeSilhouettePainter(color: silhouetteColor),
+                size: Size.infinite,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    calibrated
+                        ? 'Calibrated! Grab your weights…'
+                        : isTposeDetected
+                            ? 'Hold still…'
+                            : 'Strike a T-pose to calibrate',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: SizedBox(
+                      height: 6,
+                      child: LinearProgressIndicator(
+                        value: holdProgress,
+                        backgroundColor: Colors.white24,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          calibrated
+                              ? const Color(0xFF4CAF50)
+                              : silhouetteColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TposeSilhouettePainter extends CustomPainter {
+  const _TposeSilhouettePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height * 0.42;
+    final s = size.height * 0.32; // scale relative to canvas
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Head
+    canvas.drawCircle(Offset(cx, cy - s * 0.48), s * 0.10, paint);
+    // Neck → hip (torso)
+    canvas.drawLine(
+        Offset(cx, cy - s * 0.38), Offset(cx, cy + s * 0.22), paint);
+    // Arms horizontal (T-pose)
+    canvas.drawLine(
+        Offset(cx - s * 0.60, cy - s * 0.14),
+        Offset(cx + s * 0.60, cy - s * 0.14),
+        paint);
+    // Left leg
+    canvas.drawLine(
+        Offset(cx, cy + s * 0.22), Offset(cx - s * 0.22, cy + s * 0.62), paint);
+    // Right leg
+    canvas.drawLine(
+        Offset(cx, cy + s * 0.22), Offset(cx + s * 0.22, cy + s * 0.62), paint);
+  }
+
+  @override
+  bool shouldRepaint(_TposeSilhouettePainter old) => old.color != color;
 }
 
 // ---------------------------------------------------------------------------
@@ -802,12 +1097,14 @@ class _ProgressIsland extends StatelessWidget {
     required this.setIndex,
     required this.totalSets,
     required this.progress,
+    required this.isFormMode,
   });
 
   final String exerciseName;
   final int setIndex;
   final int totalSets;
-  final double progress;
+  final double progress;  // 0–1; form quality when isFormMode, set progress otherwise
+  final bool isFormMode;
 
   @override
   Widget build(BuildContext context) {
@@ -865,6 +1162,17 @@ class _ProgressIsland extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
+          if (isFormMode) ...[
+            const SizedBox(height: 2),
+            const Text(
+              'Form',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -904,6 +1212,47 @@ class _MiniRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MiniRingPainter old) => old.progress != progress;
+}
+
+// ---------------------------------------------------------------------------
+// Active HUD: rep completion bar
+// ---------------------------------------------------------------------------
+
+class _RepCompletionBar extends StatelessWidget {
+  const _RepCompletionBar({required this.progress});
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 6,
+            width: constraints.maxWidth,
+            child: Stack(
+              children: [
+                Container(color: Colors.white24),
+                FractionallySizedBox(
+                  widthFactor: progress.clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF4CAF50),
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1044,7 +1393,7 @@ class _RestSheet extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     return GlassCard(
-      tint: const Color(0x22C8E6C9), // soft green tint during rest
+      tint: const Color(0x22C8E6C9),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -80,7 +80,8 @@ class BleService extends ChangeNotifier {
   List<ScanResult>   scanResults     = [];
   BluetoothDevice?   connectedDevice;
   ImuData?           latestData;
-  double?            battVoltage;    // updated from both batt-only and full packets
+  double?            battVoltage;          // updated from both batt-only and full packets
+  double?            calibratedMountAngle; // set when firmware sends mount_cal result
   String?            statusMessage;
   bool               isStreaming     = false;
   bool               isCalibrating   = false;
@@ -367,6 +368,8 @@ class BleService extends ChangeNotifier {
           if (json.containsKey('yaw')) {
             latestData = ImuData.fromJson(json);
             if (latestData!.batt > 0) battVoltage = latestData!.batt;
+          } else if (json.containsKey('mount_cal')) {
+            calibratedMountAngle = (json['mount_cal'] as num).toDouble();
           } else if (json.containsKey('batt') && !json.containsKey('yaw')) {
             final v = (json['batt'] as num).toDouble();
             if (v > 0) battVoltage = v;
@@ -432,6 +435,14 @@ class BleService extends ChangeNotifier {
 
   Future<void> setMountAngle(double deg) =>
       sendCommand('MOUNT_ANGLE ${deg.toStringAsFixed(1)}');
+
+  Future<void> startMountCal(int seconds) =>
+      sendCommand('MOUNT_CAL $seconds');
+
+  void consumeMountCal() {
+    calibratedMountAngle = null;
+    // no notifyListeners needed — caller uses setState
+  }
 
   Future<void> calibrate() async {
     isCalibrating = true;
