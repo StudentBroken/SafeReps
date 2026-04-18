@@ -6,6 +6,19 @@ import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
 import '../widgets/glass_card.dart';
 
+// Per-exercise accent colors — vivid, distinct from each other.
+Color _exerciseAccent(String name) {
+  if (name.contains('Lateral')) return const Color(0xFFD6176E); // hot pink
+  if (name.contains('Curl') || name.contains('Bicep')) return const Color(0xFF5158CF); // indigo
+  return AppColors.pinkBright;
+}
+
+Color _exerciseAccentLight(String name) {
+  if (name.contains('Lateral')) return const Color(0xFFF2AFC4); // soft pink
+  if (name.contains('Curl') || name.contains('Bicep')) return const Color(0xFFB0B4F0); // soft indigo
+  return AppColors.pink;
+}
+
 // ---------------------------------------------------------------------------
 
 class GoalsPage extends StatefulWidget {
@@ -352,10 +365,11 @@ class _ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeColors = AppTheme.colors(context);
-    final primary = Theme.of(context).colorScheme.primary;
+    final accent = _exerciseAccent(exercise.name);
 
     return GlassCard(
       padding: EdgeInsets.zero,
+      tint: accent.withValues(alpha: 0.06),
       child: AnimatedSize(
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOut,
@@ -406,7 +420,7 @@ class _ExerciseCard extends StatelessWidget {
                       children: [
                         Text('${exercise.doneToday}',
                             style: TextStyle(
-                                color: primary,
+                                color: accent,
                                 fontSize: 36,
                                 fontWeight: FontWeight.w800,
                                 height: 1)),
@@ -456,35 +470,36 @@ class _CardImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeColors = AppTheme.colors(context);
-    final primary = Theme.of(context).colorScheme.primary;
+    final accent = _exerciseAccent(name);
+    final accentLight = _exerciseAccentLight(name);
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Container(
-        height: 120,
+        height: 130,
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              primary.withValues(alpha: 0.2), 
-              themeColors.accent.withValues(alpha: 0.3)
-            ],
+            colors: [accent, accentLight],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.fitness_center_rounded,
-                size: 40, color: primary.withValues(alpha: 0.5)),
-            const SizedBox(height: 6),
-            Text(name,
-                style: TextStyle(
-                    color: themeColors.textMid,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500)),
+                size: 44, color: Colors.white.withValues(alpha: 0.9)),
+            const SizedBox(height: 8),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                shadows: [Shadow(color: Colors.black26, offset: Offset(0, 1), blurRadius: 4)],
+              ),
+            ),
           ],
         ),
       ),

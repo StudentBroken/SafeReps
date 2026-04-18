@@ -76,6 +76,48 @@ class _ExerciseSummary {
     }
     return recs;
   }
+
+  /// Positive aspects — what went well.
+  List<(String, IconData)> get goodAspects {
+    if (!hasData) return [('Session completed!', Icons.check_circle_rounded)];
+    final goods = <(String, IconData)>[];
+    if (avgQuality >= 85) {
+      goods.add(('Excellent form consistency', Icons.star_rounded));
+    } else if (avgQuality >= 65) {
+      goods.add(('Solid form overall', Icons.thumb_up_alt_rounded));
+    }
+    if (!hadSustainedTremor) {
+      goods.add(('No fatigue tremors', Icons.battery_full_rounded));
+    }
+    if (!hadSustainedSwing) {
+      goods.add(('Controlled movement pace', Icons.check_circle_outline_rounded));
+    }
+    if (!hadYawIssue) {
+      goods.add(('Clean arm path', Icons.straighten_rounded));
+    }
+    return goods;
+  }
+
+  /// Negative aspects — issues detected.
+  List<(String, IconData)> get issueAspects {
+    final issues = <(String, IconData)>[];
+    if (hadSustainedTremor) {
+      issues.add(('Fatigue tremors detected', Icons.vibration_rounded));
+    }
+    if (hadSustainedSwing) {
+      issues.add(('Excessive swing speed', Icons.speed_rounded));
+    }
+    if (hadYawIssue) {
+      issues.add(('Arm drifted out of plane', Icons.rotate_left_rounded));
+    }
+    if (hadRollIssue) {
+      issues.add(('Forearm rotation issue', Icons.rotate_right_rounded));
+    }
+    if (hadPitchIssue) {
+      issues.add(('Supination loss', Icons.flip_rounded));
+    }
+    return issues;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2036,7 +2078,7 @@ String _qualityLabel(double q) {
   return 'Keep practicing';
 }
 
-class _DoneOverlay extends StatelessWidget {
+class _DoneOverlay extends StatefulWidget {
   const _DoneOverlay({
     required this.summaries,
     required this.bleWasConnected,
@@ -2047,97 +2089,138 @@ class _DoneOverlay extends StatelessWidget {
   final bool bleWasConnected;
   final VoidCallback onFinish;
 
+  @override
+  State<_DoneOverlay> createState() => _DoneOverlayState();
+}
+
+class _DoneOverlayState extends State<_DoneOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _enter;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 460),
+    );
+    _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+      CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic),
+    );
+    _fade = CurvedAnimation(parent: _enter, curve: Curves.easeOut);
+    _enter.forward();
+  }
+
+  @override
+  void dispose() {
+    _enter.dispose();
+    super.dispose();
+  }
+
   double get _overallQuality {
-    final withData = summaries.where((s) => s.hasData).toList();
+    final withData = widget.summaries.where((s) => s.hasData).toList();
     if (withData.isEmpty) return 100.0;
     return withData.fold(0.0, (s, e) => s + e.avgQuality) / withData.length;
   }
 
+  IconData _faceIcon(double q) {
+    if (q >= 85) return Icons.sentiment_very_satisfied_rounded;
+    if (q >= 65) return Icons.sentiment_satisfied_rounded;
+    if (q >= 45) return Icons.sentiment_neutral_rounded;
+    return Icons.sentiment_very_dissatisfied_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final hasFormData = bleWasConnected && summaries.any((s) => s.hasData);
+    final hasFormData =
+        widget.bleWasConnected && widget.summaries.any((s) => s.hasData);
     final overallQ = _overallQuality;
+    final faceColor =
+        hasFormData ? _qualityColor(overallQ) : AppColors.pinkBright;
 
-    return Container(
-      color: Colors.black87,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ──────────────────────────────────────────────────
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: hasFormData ? _qualityColor(overallQ) : primary,
-                      ),
-                      child: const Icon(
-                        Icons.check_rounded,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Session Complete!',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    if (hasFormData) ...[
-                      Text(
-                        '${overallQ.round()}%  ·  ${_qualityLabel(overallQ)}',
-                        style: TextStyle(
-                          color: _qualityColor(overallQ),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Container(
+          color: AppColors.background,
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header ─────────────────────────────────────────────
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          hasFormData
+                              ? _faceIcon(overallQ)
+                              : Icons.sentiment_very_satisfied_rounded,
+                          size: 84,
+                          color: faceColor,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Overall form quality',
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
-                      ),
-                    ] else
-                      const Text(
-                        'Great work!',
-                        style: TextStyle(color: Colors.white60, fontSize: 15),
-                      ),
-                  ],
-                ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Session Complete!',
+                          style: TextStyle(
+                            color: AppColors.textDark,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (hasFormData) ...[
+                          Text(
+                            '${overallQ.round()}%  ·  ${_qualityLabel(overallQ)}',
+                            style: TextStyle(
+                              color: faceColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Overall form quality',
+                            style: TextStyle(
+                                color: AppColors.textLight, fontSize: 12),
+                          ),
+                        ] else
+                          const Text(
+                            'Great work today!',
+                            style: TextStyle(
+                                color: AppColors.textMid, fontSize: 15),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Per-exercise cards ──────────────────────────────────
+                  ...widget.summaries.map(
+                    (s) => _ExerciseReportCard(
+                      summary: s,
+                      showFormData: widget.bleWasConnected,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Finish ──────────────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: widget.onFinish,
+                      child: const Text('Finish'),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 28),
-
-              // ── Per-exercise cards ───────────────────────────────────────
-              ...summaries.map(
-                (s) => _ExerciseReportCard(
-                  summary: s,
-                  showFormData: bleWasConnected,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Finish ───────────────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onFinish,
-                  child: const Text('Finish'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -2159,11 +2242,12 @@ class _ExerciseReportCard extends StatelessWidget {
     final hasForm = showFormData && summary.hasData;
     final q = summary.avgQuality;
     final recs = summary.recommendations;
+    final goods = hasForm ? summary.goodAspects : <(String, IconData)>[];
+    final issues = hasForm ? summary.issueAspects : <(String, IconData)>[];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassCard(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2174,24 +2258,21 @@ class _ExerciseReportCard extends StatelessWidget {
                   child: Text(
                     summary.name,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textDark,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                if (hasForm) ...[
+                if (hasForm)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _qualityColor(q).withValues(alpha: 0.2),
+                      color: _qualityColor(q).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _qualityColor(q).withValues(alpha: 0.6),
-                      ),
+                          color: _qualityColor(q).withValues(alpha: 0.45)),
                     ),
                     child: Text(
                       '${q.round()}%  ${_qualityLabel(q)}',
@@ -2201,11 +2282,12 @@ class _ExerciseReportCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                ] else
+                  )
+                else
                   Text(
                     '${summary.repResults.length} reps',
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                    style: const TextStyle(
+                        color: AppColors.textMid, fontSize: 13),
                   ),
               ],
             ),
@@ -2219,7 +2301,7 @@ class _ExerciseReportCard extends StatelessWidget {
                   height: 5,
                   child: Stack(
                     children: [
-                      Container(color: Colors.white12),
+                      Container(color: Colors.black.withAlpha(20)),
                       FractionallySizedBox(
                         widthFactor: (q / 100).clamp(0.0, 1.0),
                         child: Container(color: _qualityColor(q)),
@@ -2243,10 +2325,9 @@ class _ExerciseReportCard extends StatelessWidget {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _qualityColor(repQ).withValues(alpha: 0.2),
+                      color: _qualityColor(repQ).withValues(alpha: 0.15),
                       border: Border.all(
-                        color: _qualityColor(repQ).withValues(alpha: 0.7),
-                      ),
+                          color: _qualityColor(repQ).withValues(alpha: 0.6)),
                     ),
                     child: Center(
                       child: Text(
@@ -2263,37 +2344,17 @@ class _ExerciseReportCard extends StatelessWidget {
               ),
             ],
 
-            // Issue flags row
+            // Good + issue aspects with face icons
             if (hasForm) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  if (summary.hadSustainedTremor)
-                    _IssueChip(label: 'Tremor', icon: Icons.vibration_rounded),
-                  if (summary.hadSustainedSwing)
-                    _IssueChip(label: 'Fast swing', icon: Icons.speed_rounded),
-                  if (summary.hadYawIssue)
-                    _IssueChip(
-                      label: 'Arm drift',
-                      icon: Icons.rotate_left_rounded,
-                    ),
-                  if (summary.hadRollIssue)
-                    _IssueChip(
-                      label: 'Forearm rotation',
-                      icon: Icons.rotate_right_rounded,
-                    ),
-                  if (summary.hadPitchIssue)
-                    _IssueChip(label: 'Supination', icon: Icons.flip_rounded),
-                ],
-              ),
+              const SizedBox(height: 12),
+              ...goods.map((a) => _AspectRow(label: a.$1, isGood: true)),
+              ...issues.map((a) => _AspectRow(label: a.$1, isGood: false)),
             ],
 
             // Recommendations
             if (hasForm && recs.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Divider(color: Colors.white12, height: 1),
+              const SizedBox(height: 10),
+              Divider(color: Colors.black.withAlpha(20), height: 1),
               const SizedBox(height: 10),
               ...recs.map(
                 (r) => Padding(
@@ -2302,9 +2363,9 @@ class _ExerciseReportCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        '→ ',
+                        '→  ',
                         style: TextStyle(
-                          color: Colors.white38,
+                          color: AppColors.textLight,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2313,9 +2374,7 @@ class _ExerciseReportCard extends StatelessWidget {
                         child: Text(
                           r,
                           style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
+                              color: AppColors.textMid, fontSize: 12),
                         ),
                       ),
                     ],
@@ -2368,31 +2427,33 @@ class _FormIntensityBar extends StatelessWidget {
   }
 }
 
-class _IssueChip extends StatelessWidget {
-  const _IssueChip({required this.label, required this.icon});
+class _AspectRow extends StatelessWidget {
+  const _AspectRow({required this.label, required this.isGood});
   final String label;
-  final IconData icon;
+  final bool isGood;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0x33FFA000),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x66FFA000)),
-      ),
+    final face = isGood
+        ? Icons.sentiment_satisfied_alt_rounded
+        : Icons.sentiment_dissatisfied_rounded;
+    final color =
+        isGood ? const Color(0xFF2E7D32) : const Color(0xFFBF360C);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: const Color(0xFFFFA000)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFFFFA000),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          Icon(face, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
