@@ -396,6 +396,18 @@ class BleService extends ChangeNotifier {
 
   Future<void> resetCalibration() => sendCommand('RESET_CAL');
 
+  Future<void> setTremorHp(double alpha) =>
+      sendCommand('TREMOR_HP ${alpha.toStringAsFixed(3)}');
+
+  Future<void> setTremorEma(double alpha) =>
+      sendCommand('TREMOR_EMA ${alpha.toStringAsFixed(3)}');
+
+  Future<void> setCheatEps(double eps) =>
+      sendCommand('CHEAT_EPS ${eps.toStringAsFixed(3)}');
+
+  Future<void> setCheatEma(double alpha) =>
+      sendCommand('CHEAT_EMA ${alpha.toStringAsFixed(3)}');
+
   Future<void> calibrate() async {
     isCalibrating = true;
     statusMessage = 'Calibrating… keep device still';

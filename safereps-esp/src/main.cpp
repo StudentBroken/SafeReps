@@ -43,29 +43,22 @@ float alpha       = 0.5f;
 float smoothYaw   = 0, smoothPitch = 0, smoothRoll = 0;
 
 // ─── Tremor detection (100 Hz) ───────────────────────────────────────────────
-// 1st-order HP on linear accel: fc=5 Hz, α=RC/(RC+dt)=0.761
-// Passes jitter (>5 Hz), blocks slow exercise movement + DC gravity.
-static constexpr float kTremorHpAlpha = 0.761f;
-static constexpr float kTremorAlpha   = 0.08f;   // EMA, τ≈125 ms
+// 1st-order HP on linear accel.  α = RC/(RC+dt).
+// Higher α → higher cutoff → only very fast jitter passes.
+// Tunable at runtime via TREMOR_HP <alpha>.
+float kTremorHpAlpha = 0.761f;  // fc≈5 Hz default
+float kTremorAlpha   = 0.08f;   // EMA smoothing, τ≈125 ms
 float prevLax = 0, prevLay = 0, prevLaz = 0;
 float hpx = 0, hpy = 0, hpz = 0;
 float tremorScore = 0;
 
 // ─── Cheat-swing detection (100 Hz, wrist-mounted) ───────────────────────────
-// Detects momentum/gravitational swinging: the dumbbell swings like a pendulum
-// (driven by gravity/inertia) rather than being lifted by muscle force.
-//
-// Physics: during a pendulum swing the forearm is near free-fall, so the
-// gravity-compensated linear acceleration is close to zero even though angular
-// velocity is high.  A controlled rep requires real muscle force → large linear
-// accel even at the same angular speed.
-//
-//   cheatScore = |gy| / (|linear_accel| + kCheatEps)
-//   Units: (°/s) / g  — rises sharply when spinning fast with no muscle force.
-//   Typical values: rest ≈ 0, controlled curl ≈ 30–80, cheat swing ≈ 200–800.
-static constexpr float kCheatEps      = 0.05f;  // g — prevents divide-by-zero
-static constexpr float kCheatEmaAlpha = 0.05f;  // slow EMA, τ≈200 ms
-float swingScore = 0;   // EMA of cheat ratio (°/s per g)
+// cheatScore = |gyro| / (|linear_accel| + kCheatEps)
+// Low linear_accel while rotating = pendulum/gravity swing, not muscle.
+// Tunable at runtime via CHEAT_EPS <eps>.
+float kCheatEps      = 0.05f;   // g — baseline muscle-force floor
+float kCheatEmaAlpha = 0.05f;   // slow EMA, τ≈200 ms
+float swingScore = 0;           // EMA of cheat ratio (°/s per g)
 
 // ─── Zero offsets (runtime, not persisted) ───────────────────────────────────
 float yawOffset = 0, pitchOffset = 0, rollOffset = 0;
@@ -166,14 +159,56 @@ void parseCommand(String command) {
         clearCalibration();
         bleSend("{\"status\":\"Saved calibration cleared — reboot to auto-calibrate\"}");
     } else if (command.startsWith("DAMPING ")) {
-        float newAlpha = command.substring(8).toFloat();
-        if (newAlpha > 0.0f && newAlpha <= 1.0f) {
-            alpha = newAlpha;
+        float v = command.substring(8).toFloat();
+        if (v > 0.0f && v <= 1.0f) {
+            alpha = v;
             char buf[64];
-            snprintf(buf, sizeof(buf), "{\"status\":\"Damping alpha set to %.2f\"}", alpha);
+            snprintf(buf, sizeof(buf), "{\"status\":\"Damping alpha=%.3f\"}", alpha);
             bleSend(buf);
         } else {
-            bleSend("{\"status\":\"Invalid alpha (must be 0 < a <= 1)\"}");
+            bleSend("{\"status\":\"Invalid alpha (0 < a <= 1)\"}");
+        }
+    } else if (command.startsWith("TREMOR_HP ")) {
+        float v = command.substring(10).toFloat();
+        if (v > 0.0f && v < 1.0f) {
+            // Changing alpha resets HP state to avoid transient spike.
+            kTremorHpAlpha = v;
+            hpx = hpy = hpz = 0;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"status\":\"Tremor HP alpha=%.3f\"}", kTremorHpAlpha);
+            bleSend(buf);
+        } else {
+            bleSend("{\"status\":\"Invalid TREMOR_HP (0 < a < 1)\"}");
+        }
+    } else if (command.startsWith("TREMOR_EMA ")) {
+        float v = command.substring(11).toFloat();
+        if (v > 0.0f && v <= 1.0f) {
+            kTremorAlpha = v;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"status\":\"Tremor EMA alpha=%.3f\"}", kTremorAlpha);
+            bleSend(buf);
+        } else {
+            bleSend("{\"status\":\"Invalid TREMOR_EMA (0 < a <= 1)\"}");
+        }
+    } else if (command.startsWith("CHEAT_EPS ")) {
+        float v = command.substring(10).toFloat();
+        if (v > 0.0f && v <= 2.0f) {
+            kCheatEps = v;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"status\":\"Cheat eps=%.3f g\"}", kCheatEps);
+            bleSend(buf);
+        } else {
+            bleSend("{\"status\":\"Invalid CHEAT_EPS (0 < eps <= 2)\"}");
+        }
+    } else if (command.startsWith("CHEAT_EMA ")) {
+        float v = command.substring(10).toFloat();
+        if (v > 0.0f && v <= 1.0f) {
+            kCheatEmaAlpha = v;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "{\"status\":\"Cheat EMA alpha=%.3f\"}", kCheatEmaAlpha);
+            bleSend(buf);
+        } else {
+            bleSend("{\"status\":\"Invalid CHEAT_EMA (0 < a <= 1)\"}");
         }
     }
 }

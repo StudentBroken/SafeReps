@@ -15,6 +15,21 @@ class BleDebugPage extends StatefulWidget {
 class _BleDebugPageState extends State<BleDebugPage> {
   final _ble = BleService();
 
+  // ── Firmware filter params (sent via BLE when changed) ──────────────────────
+  double _tremorHpAlpha  = 0.761; // HP cutoff: higher α = only faster jitter passes
+  double _tremorEmaAlpha = 0.08;  // tremor EMA smoothing
+  double _cheatEps       = 0.05;  // g — muscle-force floor (div-by-zero guard)
+  double _cheatEmaAlpha  = 0.05;  // cheat-score smoothing
+
+  // ── Flutter-side classification thresholds (no BLE needed) ──────────────────
+  double _tremorNone     = 0.02;  // g — below = no tremor
+  double _tremorMild     = 0.06;  // g — below = mild
+  double _tremorMod      = 0.12;  // g — below = moderate; above = high
+  double _formBorderline = 30.0;  // ratio below = controlled form
+  double _formSwing      = 100.0; // ratio above = cheating
+
+  bool _tuningOpen = false;
+
   @override
   void dispose() {
     _ble.dispose();
@@ -26,7 +41,7 @@ class _BleDebugPageState extends State<BleDebugPage> {
     return AnimatedBuilder(
       animation: _ble,
       builder: (context, _) {
-        final state = _ble.connectionState;
+        final state     = _ble.connectionState;
         final connected = state == BleConnectionState.connected;
 
         return Scaffold(
@@ -37,12 +52,21 @@ class _BleDebugPageState extends State<BleDebugPage> {
             title: null,
             iconTheme: const IconThemeData(color: AppColors.textDark),
             actions: [
-              if (connected)
+              if (connected) ...[
+                IconButton(
+                  icon: Icon(
+                    Icons.tune_rounded,
+                    color: _tuningOpen ? AppColors.pinkBright : AppColors.beige,
+                  ),
+                  tooltip: 'Tune parameters',
+                  onPressed: () => setState(() => _tuningOpen = !_tuningOpen),
+                ),
                 TextButton(
                   onPressed: _ble.disconnect,
                   child: const Text('Disconnect',
                       style: TextStyle(color: AppColors.pinkBright)),
                 ),
+              ],
             ],
           ),
           body: SafeArea(
@@ -60,8 +84,38 @@ class _BleDebugPageState extends State<BleDebugPage> {
                     const SizedBox(height: 12),
                     const _CalibrationBanner(),
                   ],
+                  if (_tuningOpen) ...[
+                    const SizedBox(height: 12),
+                    _TuningPanel(
+                      tremorHpAlpha:    _tremorHpAlpha,
+                      tremorEmaAlpha:   _tremorEmaAlpha,
+                      cheatEps:         _cheatEps,
+                      cheatEmaAlpha:    _cheatEmaAlpha,
+                      tremorNone:       _tremorNone,
+                      tremorMild:       _tremorMild,
+                      tremorMod:        _tremorMod,
+                      formBorderline:   _formBorderline,
+                      formSwing:        _formSwing,
+                      onTremorHp:  (v) { setState(() => _tremorHpAlpha  = v); _ble.setTremorHp(v);  },
+                      onTremorEma: (v) { setState(() => _tremorEmaAlpha = v); _ble.setTremorEma(v); },
+                      onCheatEps:  (v) { setState(() => _cheatEps       = v); _ble.setCheatEps(v);  },
+                      onCheatEma:  (v) { setState(() => _cheatEmaAlpha  = v); _ble.setCheatEma(v);  },
+                      onTremorNone:     (v) => setState(() => _tremorNone     = v),
+                      onTremorMild:     (v) => setState(() => _tremorMild     = v),
+                      onTremorMod:      (v) => setState(() => _tremorMod      = v),
+                      onFormBorderline: (v) => setState(() => _formBorderline = v),
+                      onFormSwing:      (v) => setState(() => _formSwing      = v),
+                    ),
+                  ],
                   const SizedBox(height: 12),
-                  _DataPanel(data: _ble.latestData),
+                  _DataPanel(
+                    data:           _ble.latestData,
+                    tremorNone:     _tremorNone,
+                    tremorMild:     _tremorMild,
+                    tremorMod:      _tremorMod,
+                    formBorderline: _formBorderline,
+                    formSwing:      _formSwing,
+                  ),
                 ] else ...[
                   _ScanPanel(ble: _ble),
                 ],
@@ -108,26 +162,19 @@ class _ReconnectPanel extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(
-            width: 36,
-            height: 36,
+            width: 36, height: 36,
             child: CircularProgressIndicator(
-              color: AppColors.pinkBright,
-              strokeWidth: 3,
-            ),
+                color: AppColors.pinkBright, strokeWidth: 3),
           ),
           const SizedBox(height: 14),
-          Text(
-            ble.savedDeviceName ?? 'Saved device',
-            style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-                fontSize: 16),
-          ),
+          Text(ble.savedDeviceName ?? 'Saved device',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                  fontSize: 16)),
           const SizedBox(height: 4),
-          Text(
-            'Attempt ${ble.reconnectAttempt}',
-            style: const TextStyle(color: AppColors.textMid, fontSize: 13),
-          ),
+          Text('Attempt ${ble.reconnectAttempt}',
+              style: const TextStyle(color: AppColors.textMid, fontSize: 13)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -181,7 +228,6 @@ class _ScanPanel extends StatelessWidget {
           _SavedDeviceCard(ble: ble),
           const SizedBox(height: 12),
         ],
-
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.pinkBright,
@@ -192,17 +238,14 @@ class _ScanPanel extends StatelessWidget {
           onPressed: isScanning ? ble.stopScan : ble.startScan,
           icon: isScanning
               ? const SizedBox(
-                  width: 16,
-                  height: 16,
+                  width: 16, height: 16,
                   child: CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2))
-              : const Icon(Icons.bluetooth_searching_rounded,
-                  color: Colors.white),
+              : const Icon(Icons.bluetooth_searching_rounded, color: Colors.white),
           label: Text(isScanning ? 'Scanning…' : 'Scan for Devices',
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w600)),
         ),
-
         if (ble.scanResults.isNotEmpty) ...[
           const SizedBox(height: 12),
           const _SectionLabel('Discovered Devices'),
@@ -214,14 +257,10 @@ class _ScanPanel extends StatelessWidget {
               children: [
                 for (int i = 0; i < ble.scanResults.length; i++) ...[
                   if (i > 0)
-                    const Divider(
-                        height: 1,
-                        indent: 56,
-                        color: Color(0x18000000)),
+                    const Divider(height: 1, indent: 56, color: Color(0x18000000)),
                   _DeviceTile(
                     result: ble.scanResults[i],
-                    isSaved: ble.scanResults[i].device.remoteId.str ==
-                        ble.savedDeviceId,
+                    isSaved: ble.scanResults[i].device.remoteId.str == ble.savedDeviceId,
                     onTap: () => ble.connect(ble.scanResults[i].device),
                   ),
                 ],
@@ -246,8 +285,7 @@ class _SavedDeviceCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 36, height: 36,
             decoration: BoxDecoration(
               color: AppColors.pinkBright.withAlpha(30),
               borderRadius: BorderRadius.circular(8),
@@ -262,18 +300,13 @@ class _SavedDeviceCard extends StatelessWidget {
               children: [
                 const Text('Saved Device',
                     style: TextStyle(
-                        color: AppColors.textLight,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5)),
+                        color: AppColors.textLight, fontSize: 11,
+                        fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                 const SizedBox(height: 2),
-                Text(
-                  ble.savedDeviceName ?? ble.savedDeviceId ?? '',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark,
-                      fontSize: 14),
-                ),
+                Text(ble.savedDeviceName ?? ble.savedDeviceId ?? '',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark, fontSize: 14)),
               ],
             ),
           ),
@@ -297,8 +330,7 @@ class _SavedDeviceCard extends StatelessWidget {
             ),
             child: const Text('Connect',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+                    color: Colors.white, fontSize: 12,
                     fontWeight: FontWeight.w600)),
           ),
         ],
@@ -325,16 +357,13 @@ class _DeviceTile extends StatelessWidget {
 
     return ListTile(
       leading: Container(
-        width: 36,
-        height: 36,
+        width: 36, height: 36,
         decoration: BoxDecoration(
           color: isSaved ? AppColors.pinkBright.withAlpha(30) : AppColors.pink,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
-          isSaved
-              ? Icons.bluetooth_connected_rounded
-              : Icons.bluetooth_rounded,
+          isSaved ? Icons.bluetooth_connected_rounded : Icons.bluetooth_rounded,
           color: isSaved ? AppColors.pinkBright : AppColors.textDark,
           size: 18,
         ),
@@ -345,13 +374,11 @@ class _DeviceTile extends StatelessWidget {
             child: Text(name,
                 style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textDark,
-                    fontSize: 14)),
+                    color: AppColors.textDark, fontSize: 14)),
           ),
           if (isSaved)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.pinkBright.withAlpha(25),
                 borderRadius: BorderRadius.circular(6),
@@ -359,8 +386,7 @@ class _DeviceTile extends StatelessWidget {
               child: const Text('Saved',
                   style: TextStyle(
                       color: AppColors.pinkBright,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700)),
+                      fontSize: 10, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
@@ -372,7 +398,7 @@ class _DeviceTile extends StatelessWidget {
   }
 }
 
-// ─── Control panel (connected) ────────────────────────────────────────────────
+// ─── Control panel ────────────────────────────────────────────────────────────
 
 class _ControlPanel extends StatelessWidget {
   const _ControlPanel({required this.ble});
@@ -392,8 +418,7 @@ class _ControlPanel extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 10,
-                height: 10,
+                width: 10, height: 10,
                 decoration: const BoxDecoration(
                     color: Color(0xFF34C759), shape: BoxShape.circle),
               ),
@@ -402,18 +427,17 @@ class _ControlPanel extends StatelessWidget {
                 child: Text(name,
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                        fontSize: 15)),
+                        color: AppColors.textDark, fontSize: 15)),
               ),
               TextButton(
                 onPressed: ble.forgetDevice,
                 style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFFFF3B30),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4)),
                 child: const Text('Forget',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -484,31 +508,27 @@ class _CtrlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = onTap == null ? color.withAlpha(90) : color;
+    final c = onTap == null ? color.withAlpha(90) : color;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: effectiveColor.withAlpha(22),
+          color: c.withAlpha(22),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: effectiveColor.withAlpha(60)),
+          border: Border.all(color: c.withAlpha(60)),
         ),
         child: Column(
           children: [
             loading
                 ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: effectiveColor, strokeWidth: 2))
-                : Icon(icon, color: effectiveColor, size: 20),
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(color: c, strokeWidth: 2))
+                : Icon(icon, color: c, size: 20),
             const SizedBox(height: 4),
             Text(label,
                 style: TextStyle(
-                    color: effectiveColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    color: c, fontSize: 10, fontWeight: FontWeight.w700,
                     letterSpacing: 0.4)),
           ],
         ),
@@ -530,8 +550,7 @@ class _CalibrationBanner extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(
-            width: 20,
-            height: 20,
+            width: 20, height: 20,
             child: CircularProgressIndicator(
                 color: AppColors.pinkBright, strokeWidth: 2.5),
           ),
@@ -543,12 +562,10 @@ class _CalibrationBanner extends StatelessWidget {
                 Text('Calibrating…',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                        fontSize: 14)),
+                        color: AppColors.textDark, fontSize: 14)),
                 SizedBox(height: 2),
                 Text('Keep the device completely still',
-                    style:
-                        TextStyle(color: AppColors.textMid, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textMid, fontSize: 12)),
               ],
             ),
           ),
@@ -558,11 +575,226 @@ class _CalibrationBanner extends StatelessWidget {
   }
 }
 
+// ─── Tuning panel ─────────────────────────────────────────────────────────────
+
+class _TuningPanel extends StatelessWidget {
+  const _TuningPanel({
+    required this.tremorHpAlpha,
+    required this.tremorEmaAlpha,
+    required this.cheatEps,
+    required this.cheatEmaAlpha,
+    required this.tremorNone,
+    required this.tremorMild,
+    required this.tremorMod,
+    required this.formBorderline,
+    required this.formSwing,
+    required this.onTremorHp,
+    required this.onTremorEma,
+    required this.onCheatEps,
+    required this.onCheatEma,
+    required this.onTremorNone,
+    required this.onTremorMild,
+    required this.onTremorMod,
+    required this.onFormBorderline,
+    required this.onFormSwing,
+  });
+
+  final double tremorHpAlpha, tremorEmaAlpha;
+  final double cheatEps, cheatEmaAlpha;
+  final double tremorNone, tremorMild, tremorMod;
+  final double formBorderline, formSwing;
+
+  final ValueChanged<double> onTremorHp, onTremorEma;
+  final ValueChanged<double> onCheatEps, onCheatEma;
+  final ValueChanged<double> onTremorNone, onTremorMild, onTremorMod;
+  final ValueChanged<double> onFormBorderline, onFormSwing;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderRadius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _TuneSection('Firmware  ·  sent to device'),
+          const SizedBox(height: 10),
+          _ParamSlider(
+            label: 'Tremor HP α',
+            hint: 'Higher = only faster jitter counted',
+            value: tremorHpAlpha,
+            min: 0.50, max: 0.99, divisions: 49,
+            format: (v) => v.toStringAsFixed(3),
+            onChanged: onTremorHp,
+          ),
+          _ParamSlider(
+            label: 'Tremor EMA α',
+            hint: 'Higher = score reacts faster (less smooth)',
+            value: tremorEmaAlpha,
+            min: 0.01, max: 0.50, divisions: 49,
+            format: (v) => v.toStringAsFixed(3),
+            onChanged: onTremorEma,
+          ),
+          _ParamSlider(
+            label: 'Cheat ε (g)',
+            hint: 'Raise if resting shows false cheat; lower for more sensitivity',
+            value: cheatEps,
+            min: 0.01, max: 0.50, divisions: 49,
+            format: (v) => '${v.toStringAsFixed(3)} g',
+            onChanged: onCheatEps,
+          ),
+          _ParamSlider(
+            label: 'Cheat EMA α',
+            hint: 'Higher = form indicator reacts faster',
+            value: cheatEmaAlpha,
+            min: 0.01, max: 0.50, divisions: 49,
+            format: (v) => v.toStringAsFixed(3),
+            onChanged: onCheatEma,
+          ),
+
+          const SizedBox(height: 6),
+          const Divider(height: 1, color: Color(0x12000000)),
+          const SizedBox(height: 10),
+
+          const _TuneSection('Thresholds  ·  display only'),
+          const SizedBox(height: 10),
+          _ParamSlider(
+            label: 'Tremor none→mild (g)',
+            hint: 'Below this = no tremor detected',
+            value: tremorNone,
+            min: 0.005, max: 0.10, divisions: 38,
+            format: (v) => '${v.toStringAsFixed(3)} g',
+            onChanged: onTremorNone,
+          ),
+          _ParamSlider(
+            label: 'Tremor mild→moderate (g)',
+            hint: 'Above none, below this = mild',
+            value: tremorMild,
+            min: 0.01, max: 0.20, divisions: 38,
+            format: (v) => '${v.toStringAsFixed(3)} g',
+            onChanged: onTremorMild,
+          ),
+          _ParamSlider(
+            label: 'Tremor moderate→high (g)',
+            hint: 'Above this = high tremor',
+            value: tremorMod,
+            min: 0.02, max: 0.40, divisions: 38,
+            format: (v) => '${v.toStringAsFixed(3)} g',
+            onChanged: onTremorMod,
+          ),
+          _ParamSlider(
+            label: 'Form controlled→borderline',
+            hint: 'Ratio below this = controlled movement',
+            value: formBorderline,
+            min: 5, max: 200, divisions: 39,
+            format: (v) => v.toStringAsFixed(0),
+            onChanged: onFormBorderline,
+          ),
+          _ParamSlider(
+            label: 'Form borderline→swinging',
+            hint: 'Ratio above this = gravitational swing detected',
+            value: formSwing,
+            min: 20, max: 500, divisions: 48,
+            format: (v) => v.toStringAsFixed(0),
+            onChanged: onFormSwing,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TuneSection extends StatelessWidget {
+  const _TuneSection(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(text.toUpperCase(),
+        style: const TextStyle(
+            color: AppColors.textLight, fontSize: 9,
+            fontWeight: FontWeight.w700, letterSpacing: 1.1));
+  }
+}
+
+class _ParamSlider extends StatelessWidget {
+  const _ParamSlider({
+    required this.label,
+    required this.hint,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.format,
+    required this.onChanged,
+  });
+
+  final String label, hint;
+  final double value, min, max;
+  final int divisions;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        color: AppColors.textDark,
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              Text(format(value),
+                  style: const TextStyle(
+                      color: AppColors.pinkBright,
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.pinkBright,
+              inactiveTrackColor: AppColors.pinkBright.withAlpha(40),
+              thumbColor: AppColors.pinkBright,
+              overlayColor: AppColors.pinkBright.withAlpha(30),
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            ),
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min, max: max, divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+          Text(hint,
+              style: const TextStyle(color: AppColors.textLight, fontSize: 10)),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Data panel ───────────────────────────────────────────────────────────────
 
 class _DataPanel extends StatelessWidget {
-  const _DataPanel({required this.data});
+  const _DataPanel({
+    required this.data,
+    required this.tremorNone,
+    required this.tremorMild,
+    required this.tremorMod,
+    required this.formBorderline,
+    required this.formSwing,
+  });
+
   final ImuData? data;
+  final double tremorNone, tremorMild, tremorMod;
+  final double formBorderline, formSwing;
 
   @override
   Widget build(BuildContext context) {
@@ -578,40 +810,45 @@ class _DataPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Activity indicators (most prominent) ──────────────────────────
         const _SectionLabel('Activity'),
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _SwingIndicator(score: data!.swing)),
+            Expanded(
+              child: _FormIndicator(
+                score:      data!.swing,
+                borderline: formBorderline,
+                swing:      formSwing,
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: _TremorIndicator(score: data!.tremor)),
+            Expanded(
+              child: _TremorIndicator(
+                score:    data!.tremor,
+                none:     tremorNone,
+                mild:     tremorMild,
+                moderate: tremorMod,
+              ),
+            ),
           ],
         ),
 
         const SizedBox(height: 16),
 
-        // ── Orientation ───────────────────────────────────────────────────
         const _SectionLabel('Orientation (°)'),
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(
-                child: _AngleCard('YAW', data!.yaw, AppColors.pinkBright)),
+            Expanded(child: _AngleCard('YAW',   data!.yaw,   AppColors.pinkBright)),
             const SizedBox(width: 8),
-            Expanded(
-                child: _AngleCard(
-                    'PITCH', data!.pitch, const Color(0xFF5AC8FA))),
+            Expanded(child: _AngleCard('PITCH', data!.pitch, const Color(0xFF5AC8FA))),
             const SizedBox(width: 8),
-            Expanded(
-                child: _AngleCard(
-                    'ROLL', data!.roll, const Color(0xFF34C759))),
+            Expanded(child: _AngleCard('ROLL',  data!.roll,  const Color(0xFF34C759))),
           ],
         ),
 
         const SizedBox(height: 16),
 
-        // ── Accel + Gyro ──────────────────────────────────────────────────
         const _SectionLabel('Accelerometer (g)  ·  Gyroscope (°/s)'),
         const SizedBox(height: 6),
         GlassCard(
@@ -620,21 +857,17 @@ class _DataPanel extends StatelessWidget {
           child: Column(
             children: [
               _AxisRow(
-                label: 'Accel',
+                label: 'Accel', unit: 'g',
                 xVal: data!.ax, yVal: data!.ay, zVal: data!.az,
-                unit: 'g',
-                color: const Color(0xFF5AC8FA),
-                maxAbs: 2.0,
+                color: const Color(0xFF5AC8FA), maxAbs: 2.0,
               ),
               const SizedBox(height: 10),
               const Divider(height: 1, color: Color(0x12000000)),
               const SizedBox(height: 10),
               _AxisRow(
-                label: 'Gyro',
+                label: 'Gyro', unit: '°/s',
                 xVal: data!.gx, yVal: data!.gy, zVal: data!.gz,
-                unit: '°/s',
-                color: const Color(0xFFFF9F0A),
-                maxAbs: 250.0,
+                color: const Color(0xFFFF9F0A), maxAbs: 250.0,
               ),
             ],
           ),
@@ -642,86 +875,76 @@ class _DataPanel extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // ── Battery ───────────────────────────────────────────────────────
         const _SectionLabel('Battery'),
         const SizedBox(height: 6),
         _BatteryCard(voltage: data!.batt),
-
         const SizedBox(height: 8),
       ],
     );
   }
 }
 
-// ─── Cheat-swing indicator ────────────────────────────────────────────────────
-// Score = |angular_rate| / |linear_accel|  (°/s per g).
-// Low = muscle is doing work (controlled rep).
-// High = forearm in free pendulum — gravity/momentum is doing the lifting.
+// ─── Form indicator (cheat-swing) ────────────────────────────────────────────
 
-class _SwingIndicator extends StatelessWidget {
-  const _SwingIndicator({required this.score});
-  final double score;
+class _FormIndicator extends StatelessWidget {
+  const _FormIndicator({
+    required this.score,
+    required this.borderline,
+    required this.swing,
+  });
+  final double score, borderline, swing;
 
-  // Full bar at 400 (°/s)/g — well into cheat territory.
-  static const _kMax = 400.0;
+  static const _kMaxDisplay = 400.0;
 
   String get _label {
-    if (score < 30)  return 'Controlled';
-    if (score < 100) return 'Borderline';
+    if (score < borderline) return 'Controlled';
+    if (score < swing)      return 'Borderline';
     return 'SWINGING';
   }
 
   Color get _color {
-    if (score < 30)  return const Color(0xFF34C759);  // green — good
-    if (score < 100) return const Color(0xFFFF9500);  // orange — watch out
-    return const Color(0xFFFF3B30);                   // red — cheat swing
+    if (score < borderline) return const Color(0xFF34C759);
+    if (score < swing)      return const Color(0xFFFF9500);
+    return const Color(0xFFFF3B30);
   }
 
   IconData get _icon {
-    if (score < 30)  return Icons.check_circle_outline_rounded;
-    if (score < 100) return Icons.warning_amber_rounded;
+    if (score < borderline) return Icons.check_circle_outline_rounded;
+    if (score < swing)      return Icons.warning_amber_rounded;
     return Icons.priority_high_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
-    final fraction = (score / _kMax).clamp(0.0, 1.0);
+    final fraction = (score / _kMaxDisplay).clamp(0.0, 1.0);
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(_icon, color: _color, size: 16),
-              const SizedBox(width: 6),
-              const Text('FORM',
-                  style: TextStyle(
-                      color: AppColors.textLight,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1)),
-            ],
-          ),
+          Row(children: [
+            Icon(_icon, color: _color, size: 16),
+            const SizedBox(width: 6),
+            const Text('FORM',
+                style: TextStyle(
+                    color: AppColors.textLight, fontSize: 10,
+                    fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+          ]),
           const SizedBox(height: 8),
           Text(_label,
               style: TextStyle(
-                  color: _color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22)),
+                  color: _color, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 2),
           Text('ratio ${score.toStringAsFixed(0)}',
               style: const TextStyle(
-                  color: AppColors.textMid,
-                  fontSize: 11,
+                  color: AppColors.textMid, fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 6,
+              value: fraction, minHeight: 6,
               backgroundColor: const Color(0x18000000),
               valueColor: AlwaysStoppedAnimation(_color),
             ),
@@ -735,63 +958,60 @@ class _SwingIndicator extends StatelessWidget {
 // ─── Tremor indicator ─────────────────────────────────────────────────────────
 
 class _TremorIndicator extends StatelessWidget {
-  const _TremorIndicator({required this.score});
-  final double score;
-
-  static const _kMax = 0.3; // 0.3 g = full bar
+  const _TremorIndicator({
+    required this.score,
+    required this.none,
+    required this.mild,
+    required this.moderate,
+  });
+  final double score, none, mild, moderate;
 
   String get _label {
-    if (score < 0.02) return 'None';
-    if (score < 0.06) return 'Mild';
-    if (score < 0.12) return 'Moderate';
+    if (score < none)     return 'None';
+    if (score < mild)     return 'Mild';
+    if (score < moderate) return 'Moderate';
     return 'High';
   }
 
   Color get _color {
-    if (score < 0.02) return AppColors.textLight;
-    if (score < 0.06) return const Color(0xFFFF9500);
+    if (score < none) return AppColors.textLight;
+    if (score < mild) return const Color(0xFFFF9500);
     return const Color(0xFFFF3B30);
   }
 
+  double get _fullBar => moderate * 2.5;
+
   @override
   Widget build(BuildContext context) {
-    final fraction = (score / _kMax).clamp(0.0, 1.0);
+    final fraction = (score / _fullBar).clamp(0.0, 1.0);
     return GlassCard(
       borderRadius: 14,
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.vibration_rounded, color: _color, size: 16),
-              const SizedBox(width: 6),
-              const Text('TREMOR',
-                  style: TextStyle(
-                      color: AppColors.textLight,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1)),
-            ],
-          ),
+          Row(children: [
+            Icon(Icons.vibration_rounded, color: _color, size: 16),
+            const SizedBox(width: 6),
+            const Text('TREMOR',
+                style: TextStyle(
+                    color: AppColors.textLight, fontSize: 10,
+                    fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+          ]),
           const SizedBox(height: 8),
           Text(_label,
               style: TextStyle(
-                  color: _color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22)),
+                  color: _color, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 2),
           Text('${score.toStringAsFixed(3)} g',
               style: const TextStyle(
-                  color: AppColors.textMid,
-                  fontSize: 11,
+                  color: AppColors.textMid, fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 6,
+              value: fraction, minHeight: 6,
               backgroundColor: const Color(0x18000000),
               valueColor: AlwaysStoppedAnimation(_color),
             ),
@@ -824,8 +1044,7 @@ class _AngleCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text('${value.toStringAsFixed(1)}°',
               style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
+                  fontWeight: FontWeight.w800, fontSize: 22,
                   color: AppColors.textDark)),
         ],
       ),
@@ -833,7 +1052,7 @@ class _AngleCard extends StatelessWidget {
   }
 }
 
-// ─── Axis row (accel + gyro combined card) ────────────────────────────────────
+// ─── Axis row ─────────────────────────────────────────────────────────────────
 
 class _AxisRow extends StatelessWidget {
   const _AxisRow({
@@ -846,11 +1065,9 @@ class _AxisRow extends StatelessWidget {
     required this.maxAbs,
   });
 
-  final String label;
-  final double xVal, yVal, zVal;
-  final String unit;
+  final String label, unit;
+  final double xVal, yVal, zVal, maxAbs;
   final Color color;
-  final double maxAbs;
 
   @override
   Widget build(BuildContext context) {
@@ -859,9 +1076,7 @@ class _AxisRow extends StatelessWidget {
       children: [
         Text(label,
             style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+                color: color, fontSize: 10, fontWeight: FontWeight.w700,
                 letterSpacing: 0.8)),
         const SizedBox(height: 8),
         Row(
@@ -880,11 +1095,9 @@ class _AxisRow extends StatelessWidget {
 
 class _AxisBar extends StatelessWidget {
   const _AxisBar(this.axis, this.value, this.unit, this.color, this.maxAbs);
-  final String axis;
-  final double value;
-  final String unit;
+  final String axis, unit;
+  final double value, maxAbs;
   final Color color;
-  final double maxAbs;
 
   @override
   Widget build(BuildContext context) {
@@ -898,27 +1111,20 @@ class _AxisBar extends StatelessWidget {
             children: [
               Text(axis,
                   style: const TextStyle(
-                      color: AppColors.textLight,
-                      fontSize: 10,
+                      color: AppColors.textLight, fontSize: 10,
                       fontWeight: FontWeight.w700)),
               const Spacer(),
-              Text(
-                '${isNeg ? '' : '+'}${value.toStringAsFixed(2)}',
-                style: TextStyle(
-                    color: isNeg
-                        ? const Color(0xFFFF9500)
-                        : AppColors.textDark,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700),
-              ),
+              Text('${isNeg ? '' : '+'}${value.toStringAsFixed(2)}',
+                  style: TextStyle(
+                      color: isNeg ? const Color(0xFFFF9500) : AppColors.textDark,
+                      fontSize: 11, fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 4),
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 5,
+              value: fraction, minHeight: 5,
               backgroundColor: const Color(0x14000000),
               valueColor: AlwaysStoppedAnimation(
                   isNeg ? const Color(0xFFFF9500) : color),
@@ -956,10 +1162,8 @@ class _BatteryCard extends StatelessWidget {
     return 'Critical';
   }
 
-  double get _fraction {
-    // Li-Po: ~4.2 V full, ~3.3 V empty
-    return ((voltage - 3.3) / (4.2 - 3.3)).clamp(0.0, 1.0);
-  }
+  double get _fraction =>
+      ((voltage - 3.3) / (4.2 - 3.3)).clamp(0.0, 1.0);
 
   @override
   Widget build(BuildContext context) {
@@ -978,14 +1182,12 @@ class _BatteryCard extends StatelessWidget {
                   children: [
                     Text('${voltage.toStringAsFixed(2)} V',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
+                            fontWeight: FontWeight.w800, fontSize: 20,
                             color: AppColors.textDark)),
                     const SizedBox(width: 8),
                     Text(_label,
                         style: TextStyle(
-                            color: _color,
-                            fontSize: 12,
+                            color: _color, fontSize: 12,
                             fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -993,8 +1195,7 @@ class _BatteryCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: _fraction,
-                    minHeight: 6,
+                    value: _fraction, minHeight: 6,
                     backgroundColor: const Color(0x18000000),
                     valueColor: AlwaysStoppedAnimation(_color),
                   ),
@@ -1018,9 +1219,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(text.toUpperCase(),
         style: const TextStyle(
-            color: AppColors.textLight,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2));
+            color: AppColors.textLight, fontSize: 11,
+            fontWeight: FontWeight.w700, letterSpacing: 1.2));
   }
 }
