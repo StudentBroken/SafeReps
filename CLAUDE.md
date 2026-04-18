@@ -147,3 +147,4 @@ pio device monitor                          # serial monitor
 - **BLE commands**: always run calibration deferred (flag in `loop()`, not in BLE RX callback) to avoid blocking NimBLE's task. Disable DMP before `CalibrateAccel/Gyro`, re-enable + `resetFIFO` after.
 - **Linear accel scale**: use `getMotion6()` / 16384 − gravity vector. Do NOT use `dmpGetLinearAccel` — it hardcodes 8192 (±4 g scale) causing a 2× error on the Z axis.
 - **Tremor thresholds**: < 0.02 g none, 0.02–0.06 g mild, 0.06–0.12 g moderate, > 0.12 g high. Full bar = 0.3 g in `_TremorCard`.
+

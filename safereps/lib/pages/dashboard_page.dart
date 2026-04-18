@@ -73,10 +73,6 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 12),
 
-            // ── Section 3: pill progress bars ────────────────────────────────
-            _ProgressPillsCard(exercises: model.exercises),
-            const SizedBox(height: 12),
-
             // ── Section 4 header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -141,6 +137,11 @@ class _DashboardPageState extends State<DashboardPage>
                 },
               ),
             ),
+            const SizedBox(height: 32),
+
+            // ── Section 3: pill progress bars (now at bottom) ────────────────
+            _ProgressPillsCard(exercises: model.exercises),
+            const SizedBox(height: 12),
           ],
         ),
       ),
