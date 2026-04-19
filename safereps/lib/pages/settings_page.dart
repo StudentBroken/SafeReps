@@ -4,6 +4,7 @@ import '../main.dart' show cameras;
 import '../models/coach_settings.dart';
 import '../models/goals_model.dart';
 import '../pages/ble_debug_page.dart';
+import '../pages/game67_page.dart';
 import '../pose_camera_page.dart';
 import '../shell.dart' show kNavPillClearance;
 import '../theme.dart';
@@ -237,6 +238,34 @@ class SettingsPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => PoseCameraPage(cameras: cameras),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 56, color: Color(0x18000000)),
+                  ListTile(
+                    leading: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: themeColors.accent.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.sports_score_rounded,
+                          color: themeColors.textDark, size: 18),
+                    ),
+                    title: Text('67 Game',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: themeColors.textDark)),
+                    subtitle: Text('20-second up/down pitch challenge',
+                        style: TextStyle(
+                            color: themeColors.textMid, fontSize: 12)),
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        color: themeColors.unselected),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const Game67Page(),
                       ),
                     ),
                   ),
