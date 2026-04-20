@@ -4,119 +4,77 @@
 
 # SafeReps
 ### Movement Intelligence for Home Strength Training
-**Every rep. Counted correctly. Coached in real-time.**
+**Correct form. Prevent injuries. Know your limits.**
 
 ---
 
 ## 📽️ THE PROBLEM
-### "Training in the Dark"
-Lifting weights at home is a one-way street. You follow a screen, but the screen can't see you. This creates a dangerous feedback gap:
+### "Training Blind"
+When you work out at home, you're training blind. You follow a video on a screen, but the screen can't see you back—and it definitely can't tell you that your back is rounding or that you stopped hitting full range of motion three reps ago.
 
-*   **Invisible Fatigue**: Micro-tremors and form breakdown happen before you feel them.
-*   **Zero Feedback**: Static videos can't tell you to straighten your arm or slow your descent.
-*   **The Injury Loop**: Undetected bad habits compound into chronic pain (lower back, joints).
+*   **Invisible Fatigue**: Muscle tremors and form breakdown happen before you consciously feel them.
+*   **The Feedback Gap**: Videos are a one-way street. Without a coach, bad habits compound into chronic injury.
+*   **Missing Context**: Heart rate monitors tell you *how hard* you're working, but they don't know *if* you're lifting safely.
 
 ---
 
 ## 💡 THE SOLUTION
 ### A Personal Trainer in Your Living Room
-SafeReps bridges the gap between a static video and a live coach using a high-fidelity **Sensor Fusion** engine.
-
-> **Sense → Analyze → Correct.**
+SafeReps is a dual-stream coaching ecosystem that fuses two data sources into a single real-time picture of your movement.
 
 #### **1. VISION (The Eyes)**
-Google ML Kit tracks 33 body landmarks at 30 FPS. It calculates joint angles and spatial positioning using only your phone.
+Google ML Kit tracks 33 skeletal landmarks at 30 FPS. It calculates joint angles and range of motion using the phone you already own.
 
 #### **2. WEARABLE (The Senses)**
-A sub-$50 DIY wrist module capturing motion at 100Hz. It detects the "invisible" physics—momentum cheating and fatigue tremors—that cameras miss.
+A high-speed sensor module detecting the "invisible" physics: momentum cheating, muscle tremors, and plane-of-motion drift that no camera can catch.
 
-#### **3. COACH (The Voice)**
-A priority-gated AI coach that provides real-time guidance. Corrections like *"Slow down"* fire the moment your form breaks, not after the set is over.
+> **The Digital Twin**: When these streams align, SafeReps builds a live model of your workout. The moment form degrades, the AI coach fires immediately: *"Slow your descent"* or *"Straighten your arm."*
 
 ---
 
 ## 🧠 THE "SECRET SAUCE"
 ### High-Fidelity DSP & Logic
 
-#### **🚀 High-Speed DSP**
-The ESP32-C3 performs real-time Digital Signal Processing (DSP) before data ever hits the app:
-*   **Tremor Analysis**: A 100Hz high-pass filter isolates neuromuscular jitter from intentional movement.
-*   **Cheat Detection**: Calculates the ratio of *Angular Velocity* to *Linear Acceleration* to catch momentum-based swings.
-
-#### **🔄 The Rep State Machine**
-A 5-stage Finite State Machine (FSM) ensures every rep is anatomically complete:
-`Idle → Top → Descending → Bottom → Ascending`
-
----
-
-## ⚖️ THE SETUP
-### T-Pose Calibration
-**Accuracy starts with alignment.**
-SafeReps requires a 1-second **T-Pose** before every set. This enables:
-1.  **Sensor Zeroing**: Synchronizes the wearable’s orientation to your skeletal model.
-2.  **Scaption Alignment**: Defines the reference plane for your specific biomechanics.
+| Layer | Technology |
+| :--- | :--- |
+| **Mobile App** | Flutter + Google ML Kit |
+| **Wearable** | ESP32-C3 with low-latency BLE |
+| **Sensing** | MPU6050 6-Axis IMU at 100Hz |
+| **DSP** | On-chip high-pass tremor filters + Angular/Linear velocity ratios |
+| **Logic** | 5-Stage FSM (Idle → Top → Descending → Bottom → Ascending) |
 
 ---
 
 ## 🛠️ THE HARDWARE
-### Accessible. High-Performance. $49.
+### Pro-Level Tech. DIY Price.
 
 | Component | Role |
 | :--- | :--- |
 | **ESP32-C3** | Logic & Low-Latency Bluetooth |
 | **MPU6050** | 6-Axis IMU (Sensing) |
-| **LiPo 400mAh** | Wireless Power |
-| **100k Resistors**| Battery Monitoring Divider |
-| **Components** | Protection Diode & Smoothing Capacitor |
+| **Power Path** | USB-C Charger, Switch, & Protection Diode |
+| **Monitoring** | 100k Ohm Voltage Divider (Battery Level) |
 
-### Hardware Diagram
-```mermaid
-graph LR
+> **Hardware Economics**: Our working prototype costs under **$5** in components. With a custom PCB at volume, the BOM drops to **~$3**, making a $50 retail price highly realistic for pro-grade coaching.
 
-subgraph PWR ["Power & charging"]
-  BAT["400mAh LiPo"]
-  CHG["USB-C charger"]
-  SW["Slide switch"]
-  D["Diode"]
-  CAP["Cap"]
-end
+---
 
-subgraph VDIV ["Battery monitor"]
-  R1["100kΩ"]
-  R2["100kΩ"]
-end
+## ⚖️ THE SETUP
+### T-Pose Calibration
+Accuracy starts with alignment. SafeReps requires a 1-second **T-Pose** before every set to software-align the sensor's coordinate system to your specific limb geometry. No manual setup required.
 
-subgraph MCU ["Control"]
-  ESP["ESP32-C3"]
-end
+---
 
-subgraph SENSE ["Sensing"]
-  MPU["MPU6050 IMU"]
-end
-
-BAT -- "B+" --> CHG
-BAT -- "B−" --> CHG
-BAT -- "+" --> SW
-SW --> D
-D -- "VIN" --> ESP
-D -- "VIN" --> CAP
-CAP -- "GND" --> BAT
-
-BAT -- "+" --> R1
-R1 --> R2
-R2 -- "GND" --> BAT
-R1 -- "GPIO 1 ADC" --> ESP
-
-ESP -- "3.3V" --> MPU
-ESP -- "SDA GPIO 8" --> MPU
-ESP -- "SCL GPIO 9" --> MPU
-ESP -- "INT GPIO 10" --> MPU
-```
+## 🧪 WHAT WE LEARNED
+*   **Latency is the UX**: In fitness, 500ms is the difference between a useful cue and an injury. Optimizing the sensor-to-coach pipeline was our most impactful work.
+*   **Cameras see position. Sensors feel effort**: Vision tells you where a limb is. A 100Hz IMU tells you how hard the muscles are working and how stable the movement is. You need both.
+*   **Calibration beats features**: User-friendly auto-alignment (T-Pose) matters more than any individual algorithm. If setup is hard, users skip it.
 
 ---
 
 ## 🔮 THE FUTURE
-*   **🥊 Shadow Boxing**: Strike velocity and "snap" analysis for combat sports.
+*   **🍎 LiDAR-Enhanced Tracking**: Integrating front-facing LiDAR for true depth-aware skeletal tracking and sub-centimeter joint positioning.
+*   **🥊 Shadow Boxing**: High-speed strike velocity and "snap" analysis for combat sports.
 *   **🕶️ AR Overlays**: Visual "ghost reps" projected over your body in real-time.
 *   **🏥 Physical Therapy**: High-fidelity tracking for home-based rehabilitation.
 
