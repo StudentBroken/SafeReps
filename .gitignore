@@ -1,0 +1,60 @@
+# Generated and temporary files
+/scratch/
+/build/
+*.pyc
+*.log
+.pyc
+__pycache__/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.swiftpm/
+.DS_Store
+.atom/
+
+# Flutter (safereps/)
+safereps/.dart_tool/
+safereps/.flutter-plugins
+safereps/.flutter-plugins-dependencies
+safereps/.pub-cache/
+safereps/.pub/
+safereps/build/
+safereps/coverage/
+
+# Flutter iOS
+safereps/ios/Pods/
+safereps/ios/.symlinks/
+safereps/ios/build/
+safereps/ios/Flutter/Generated.xcconfig
+safereps/ios/Flutter/flutter_export_environment.sh
+
+# Flutter Android
+safereps/android/app/debug/
+safereps/android/app/profile/
+safereps/android/app/release/
+safereps/android/local.properties
+
+# Flutter Web
+safereps/web/
+safereps/.web/
+
+# ESP32 Firmware (safereps-esp/)
+safereps-esp/.pio/
+safereps-esp/.platformio/
+safereps-esp/build/
+
+# Temp files
+*.swp
+*.swo
+*~
+.history
+.svn/
+migrate_working_dir/
+
+# OS files
+.DS_Store
+Thumbs.db
